@@ -1,0 +1,13 @@
+{
+  "name": "포켓몬 서포터",
+  "short_name": "포켓몬 서포터",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#222226",
+  "theme_color": "#e23535",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
