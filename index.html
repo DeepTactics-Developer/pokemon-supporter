@@ -8,14 +8,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="포켓몬 서포터">
 <style>
-:root{--bg:#f5f5f7;--fg:#1d1d1f;--card:#fff;--mut:#6e6e73;--bd:#d8d8dc;--ac:#4a90d9}
-@media(prefers-color-scheme:dark){:root{--bg:#161618;--fg:#f2f2f4;--card:#222226;--mut:#9a9aa0;--bd:#38383d}}
+:root{--bg:#f5f5f7;--fg:#1d1d1f;--card:#fff;--mut:#6e6e73;--bd:#d8d8dc;--ac:#4a90d9;--hl:#fdecea}
+@media(prefers-color-scheme:dark){:root{--bg:#161618;--fg:#f2f2f4;--card:#222226;--mut:#9a9aa0;--bd:#38383d;--hl:#3a2222}}
 body{margin:0 auto;padding:16px;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;max-width:900px}
 h2{margin:20px 0 8px;font-size:16px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
 input,select{box-sizing:border-box;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--fg);font-size:15px}
+input[type=checkbox]{padding:0}
 .s input{width:100%}
-button{padding:4px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--fg);cursor:pointer}
+button,.btn{padding:4px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--fg);cursor:pointer;font-size:14px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .t{display:inline-block;padding:1px 8px;border-radius:10px;color:#fff;font-size:12px;margin:1px}
 .x{font-weight:600}.x4{color:#c0392b}.x2{color:#d35400}.x05{color:#2e7d32}.x025{color:#1b5e20}.x0{color:var(--mut)}
@@ -29,26 +30,42 @@ img{width:64px;height:64px;image-rendering:pixelated}
 .sel{outline:2px solid var(--ac)}
 .win{color:#2e7d32;font-weight:600}.lose{color:#c0392b;font-weight:600}
 label{font-size:13px;color:var(--mut)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px}
+td,th{padding:2px 6px;text-align:center;border-bottom:1px solid var(--bd)}
+tr.bad td{background:var(--hl)}
+.chip{display:inline-flex;align-items:center;gap:2px;padding:0 8px 0 0}
+.chip img{width:32px;height:32px}
+.tab{border-radius:6px 6px 0 0}.tab.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+details summary{cursor:pointer;font-weight:600}
 </style></head><body>
 <h1 style="font-size:20px">포켓몬 서포터</h1>
 
 <div class="card row">
   <label>게임 <select id="game"></select></label>
   <label><input type="checkbox" id="dexOnly"> 이 게임에 나오는 포켓몬만 검색</label>
+  <label><input type="checkbox" id="doubles"> 더블배틀</label>
   <label>레벨 <input id="lvl" type="number" min="1" max="100" style="width:70px"></label>
   <label>개체값 <input id="iv" type="number" min="0" max="31" style="width:60px"></label>
   <label>날씨 <select id="weather"><option value="">없음/특성 따름</option><option value="sun">쾌청</option><option value="rain">비</option><option value="sand">모래바람</option><option value="snow">설경/싸라기눈</option></select></label>
+  <label>상대 노력치 가정 <select id="oppPreset"><option value="">없음 (0)</option><option value="atk">공격형 (공격/특공·스피드 252, 보정 성격)</option><option value="bulk">내구형 (HP 252, 방어·특방 128)</option></select></label>
 </div>
 
 <h2>내 엔트리 (최대 6마리) <span class="mut">— 카드를 눌러 도구·기술 설정</span></h2>
+<div class="row" style="margin-bottom:8px">
+  <label>팀 <select id="teamSel"></select></label>
+  <button id="tNew">새 팀</button><button id="tRen">이름 변경</button><button id="tDel">삭제</button>
+  <button id="tExp">내보내기</button><label class="btn">가져오기<input type="file" id="tImp" accept=".json,application/json" hidden></label>
+</div>
 <div class="s"><input id="q1" placeholder="내 포켓몬 검색 (한글/영문/도감번호) → 클릭해서 추가"><div class="res" id="r1" hidden></div></div>
 <div id="team" class="row" style="margin-top:8px"></div>
 <div id="edit"></div>
+<div id="analysis"></div>
 
 <h2>상대 포켓몬</h2>
+<div id="slots" class="row" style="margin-bottom:6px"></div>
 <div class="s"><input id="q2" placeholder="상대 포켓몬 검색 (한글/영문/도감번호)"><div class="res" id="r2" hidden></div></div>
-<div class="row" style="margin-top:8px"><label>상대 도구 <select id="oppItem"></select></label>
-  <label>상대 노력치 가정 <select id="oppPreset"><option value="">없음 (0)</option><option value="atk">공격형 (공격/특공·스피드 252, 보정 성격)</option><option value="bulk">내구형 (HP 252, 방어·특방 128)</option></select></label></div>
+<div id="recent" class="row" style="margin-top:6px"></div>
 <div id="out"></div>
 
 <script>
@@ -59,7 +76,11 @@ const COL={normal:'#9a9a8a',fire:'#e8622c',water:'#4a8fe0',electric:'#e5b800',gr
 // 공격타입: [2배, 0.5배, 0배] (6세대 이후 기준)
 const C={normal:['','rock steel','ghost'],fire:['grass ice bug steel','fire water rock dragon',''],water:['fire ground rock','water grass dragon',''],electric:['water flying','electric grass dragon','ground'],grass:['water ground rock','fire grass poison flying bug dragon steel',''],ice:['grass ground flying dragon','fire water ice steel',''],fighting:['normal ice rock dark steel','poison flying psychic bug fairy','ghost'],poison:['grass fairy','poison ground rock ghost','steel'],ground:['fire electric poison rock steel','grass bug','flying'],flying:['grass fighting bug','electric rock steel',''],psychic:['fighting poison','psychic steel','dark'],bug:['grass psychic dark','fire fighting poison flying ghost steel fairy',''],rock:['fire ice flying bug','fighting ground steel',''],ghost:['psychic ghost','dark','normal'],dragon:['dragon','steel','fairy'],dark:['psychic ghost','fighting dark fairy',''],steel:['ice rock fairy','fire water electric steel',''],fairy:['fighting dragon dark','fire poison steel','']};
 const PHYS_TYPES='normal fighting flying poison ground rock bug ghost steel'.split(' '); // 3세대까지 물리/특수는 타입으로 결정
-const ITEMS={'':'없음',lifeorb:'생명의구슬',band:'구애머리띠',specs:'구애안경',belt:'달인의띠',vest:'돌격조끼',eviolite:'진화의휘석',sash:'기합의띠'};
+// 타입 강화 도구 (기술 타입 일치 시 ×1.2)
+const BOOST={normal:'실크스카프',fire:'목탄',water:'신비의물방울',electric:'자석',grass:'기적의씨',ice:'녹지않는얼음',fighting:'검은띠',poison:'독바늘',ground:'부드러운모래',flying:'예리한부리',psychic:'휘어진스푼',bug:'은빛가루',rock:'딱딱한돌',ghost:'저주의부적',dragon:'용의이빨',dark:'검은안경',steel:'금속코트',fairy:'요정의깃털'};
+const ITEMS={'':'없음',lifeorb:'생명의구슬',band:'구애머리띠',specs:'구애안경',scarf:'구애스카프',belt:'달인의띠',muscle:'힘의머리띠',wise:'박식안경',
+  vest:'돌격조끼',eviolite:'진화의휘석',sash:'기합의띠',berry:'반감열매 (약점 1회 반감)',balloon:'풍선',
+  ...Object.fromEntries(ALL.map(t=>['b-'+t,`${BOOST[t]} (${KO[t]} ×1.2)`]))};
 // 상대 특성 때문에 특정 타입이 무효/흡수되는 경우
 const IMM={levitate:'ground','flash-fire':'fire','water-absorb':'water','storm-drain':'water','dry-skin':'water','volt-absorb':'electric','lightning-rod':'electric','motor-drive':'electric','sap-sipper':'grass','earth-eater':'ground','well-baked-body':'fire'};
 const STAT={hp:'HP',attack:'공격',defense:'방어','special-attack':'특공','special-defense':'특방',speed:'스피드'};
@@ -69,7 +90,7 @@ const STAT={hp:'HP',attack:'공격',defense:'방어','special-attack':'특공','
 const GAMES={1:['레드·블루',1,[1]],2:['피카츄',1,[2]],3:['골드·실버',2,[3]],4:['크리스탈',2,[4]],5:['루비·사파이어',3,[5]],6:['에메랄드',3,[6]],7:['파이어레드·리프그린',3,[7]],
   8:['디아루가·펄기아',4,[8]],9:['기라티나',4,[9]],10:['하트골드·소울실버',4,[10]],11:['블랙·화이트',5,[11]],14:['블랙2·화이트2',5,[14]],15:['X·Y',6,[15]],16:['오메가루비·알파사파이어',6,[16]],
   17:['썬·문',7,[17]],18:['울트라썬·울트라문',7,[18]],19:['레츠고! 피카츄·이브이',7,[19],1],20:['소드·실드 (+DLC)',8,[20,21,22]],23:['브릴리언트다이아몬드·샤이닝펄',8,[23]],24:['LEGENDS 아르세우스',8,[24],1],25:['스칼렛·바이올렛 (+DLC)',9,[25,26,27]]};
-let S=Object.assign({game:25,lvl:50,iv:31,weather:'',oppItem:'',oppPreset:'',dexOnly:true},JSON.parse(localStorage.settings||'{}'));
+let S=Object.assign({game:25,lvl:50,iv:31,weather:'',oppPreset:'',dexOnly:true,doubles:false},JSON.parse(localStorage.settings||'{}'));
 if(!GAMES[S.game])S.game=25;
 S.gen=GAMES[S.game][1];
 const types=()=>S.gen===1?ALL.slice(0,15):S.gen<6?ALL.slice(0,17):ALL;
@@ -81,7 +102,9 @@ function m1(a,d){
 }
 const eff=(a,defs)=>defs.reduce((p,d)=>p*m1(a,d),1);
 
-// 응답은 localStorage에 캐시 → 한 번 본 포켓몬은 오프라인에서도 동작
+// 응답은 localStorage에 캐시 → 한 번 본 포켓몬은 오프라인에서도 동작. 쿼리 구조가 바뀌면 CV를 올려 옛 캐시 정리
+const CV='2';
+if(localStorage.cv!==CV){Object.keys(localStorage).filter(k=>k.startsWith('q:')).forEach(k=>localStorage.removeItem(k));localStorage.cv=CV}
 async function gql(q){
   const k='q:'+q;
   try{const c=localStorage[k];if(c)return JSON.parse(c)}catch{}
@@ -93,7 +116,7 @@ async function gql(q){
 const cache={};
 async function load(id){
   if(cache[id])return cache[id];
-  const d=(await gql(`{pokemon_v2_pokemon(where:{id:{_eq:${id}}}){id name
+  const d=(await gql(`{pokemon_v2_pokemon(where:{id:{_eq:${id}}}){id name weight
     pokemon_v2_pokemonspecy{pokemon_v2_pokemonspeciesnames(where:{language_id:{_eq:3}}){name}}
     pokemon_v2_pokemonforms{pokemon_v2_pokemonformnames(where:{language_id:{_eq:3}}){name}}
     pokemon_v2_pokemontypes{pokemon_v2_type{name}}
@@ -102,7 +125,7 @@ async function load(id){
     pokemon_v2_pokemonabilitypasts{generation_id slot is_hidden pokemon_v2_ability{name generation_id pokemon_v2_abilitynames(where:{language_id:{_eq:3}}){name}}}
     pokemon_v2_pokemonstats{base_stat pokemon_v2_stat{name}}}}`)).pokemon_v2_pokemon[0];
   const ab=a=>a.pokemon_v2_ability&&{id:a.pokemon_v2_ability.name,gen:a.pokemon_v2_ability.generation_id,name:a.pokemon_v2_ability.pokemon_v2_abilitynames[0]?.name||a.pokemon_v2_ability.name,hidden:a.is_hidden};
-  return cache[id]={id,
+  return cache[id]={id,weight:d.weight||1,
     name:label(d.pokemon_v2_pokemonspecy.pokemon_v2_pokemonspeciesnames[0]?.name||d.name,d),
     typesNow:d.pokemon_v2_pokemontypes.map(t=>t.pokemon_v2_type.name),
     typesPast:d.pokemon_v2_pokemontypepasts.map(t=>[t.generation_id,t.pokemon_v2_type.name]),
@@ -131,14 +154,52 @@ function abilitiesOf(p){
   }
   return [...slots.values()].filter(a=>a&&a.gen<=S.gen&&(!a.hidden||S.gen>=5));
 }
+
+// 고정 데미지기: 레벨만큼 / 고정값 / 현재 HP 절반 (타입 무효는 적용)
+const FIXED={'seismic-toss':'lvl','night-shade':'lvl','dragon-rage':40,'sonic-boom':20,'super-fang':'half','ruination':'half','natures-madness':'half'};
+// 연타 횟수 데이터가 없는 기술
+const HITS={'population-bomb':[1,10]};
+// 맞힐 때마다 위력이 오르는 연속기 (전부 맞는다고 가정)
+const ESC={'triple-axel':[20,40,60],'triple-kick':[10,20,30]};
+const wtPow=w=>w>=200?120:w>=100?100:w>=50?80:w>=25?60:w>=10?40:20;
+const ratioPow=r=>r>=5?120:r>=4?100:r>=3?80:r>=2?60:40;
+const posRanks=F=>Object.values(F.rank||{}).reduce((a,v)=>a+Math.max(0,v),0);
+// 위력이 상황에 따라 바뀌는 기술 (HP 조건은 HP 가득 찬 상태 가정)
+const VARP={
+  'low-kick':(X,Y)=>wtPow(Y.p.weight/10),'grass-knot':(X,Y)=>wtPow(Y.p.weight/10),
+  'heavy-slam':(X,Y)=>ratioPow(X.p.weight/Y.p.weight),'heat-crash':(X,Y)=>ratioPow(X.p.weight/Y.p.weight),
+  'gyro-ball':(X,Y,W)=>Math.min(150,Math.floor(25*spdOf(Y,W)/spdOf(X,W))+1),
+  'electro-ball':(X,Y,W)=>{const r=spdOf(X,W)/spdOf(Y,W);return r>=4?150:r>=3?120:r>=2?80:r>=1?60:40},
+  'eruption':()=>150,'water-spout':()=>150,'dragon-energy':()=>150,'reversal':()=>20,'flail':()=>20,
+  'crush-grip':()=>120,'wring-out':()=>120,'hard-press':()=>100,'return':()=>102,'frustration':()=>102,
+  'stored-power':X=>20+20*posRanks(X),'power-trip':X=>20+20*posRanks(X),'punishment':(X,Y)=>Math.min(200,60+20*posRanks(Y)),
+};
+// 세대별 위력/타입 변경: movechange는 "그 버전 이전까지" 쓰던 값
+function pastVal(m,f){
+  return m.pokemon_v2_movechanges.filter(c=>c[f]!=null&&c.pokemon_v2_versiongroup.generation_id>S.gen)
+    .sort((a,b)=>a.pokemon_v2_versiongroup.generation_id-b.pokemon_v2_versiongroup.generation_id)[0]?.[f];
+}
+function toMove(m){
+  const meta=m.pokemon_v2_movemeta[0],base=pastVal(m,'power')??m.power??0;
+  return {id:m.name,name:m.pokemon_v2_movenames[0]?.name||m.name,base,
+    power:FIXED[m.name]||VARP[m.name]?1:base,
+    type:pastVal(m,'pokemon_v2_type')?.name||m.pokemon_v2_type.name,cls:m.pokemon_v2_movedamageclass.name,
+    prio:m.priority||0,target:m.pokemon_v2_movetarget?.name||'',chance:m.move_effect_chance||0,
+    hits:HITS[m.name]||(meta?.max_hits>1?[meta.min_hits,meta.max_hits]:null),
+    flags:m.pokemon_v2_moveattributemaps.map(a=>a.pokemon_v2_moveattribute.name)};
+}
+const moveLabel=m=>FIXED[m.id]?'고정 데미지':VARP[m.id]?'위력 가변':m.base?`위력 ${m.base}${m.hits?` ×${m.hits[0]===m.hits[1]?m.hits[0]:m.hits.join('~')}회`:''}${m.prio?` · 우선도 ${m.prio>0?'+':''}${m.prio}`:''}`:'변화';
 // 선택한 게임에서 배울 수 있는 모든 기술 (변화기 포함). 없으면 같은 세대 → 이전 세대 순으로
 const mcache={};
 async function movesOf(id){
   const k=id+':'+S.game;if(mcache[k])return mcache[k];
-  const q=w=>gql(`{pokemon_v2_pokemonmove(where:{pokemon_id:{_eq:${id}},pokemon_v2_versiongroup:${w}},distinct_on:move_id){pokemon_v2_move{name power pokemon_v2_type{name} pokemon_v2_movedamageclass{name} pokemon_v2_movenames(where:{language_id:{_eq:3}}){name}}}}`).then(d=>d.pokemon_v2_pokemonmove);
+  const q=w=>gql(`{pokemon_v2_pokemonmove(where:{pokemon_id:{_eq:${id}},pokemon_v2_versiongroup:${w}},distinct_on:move_id){pokemon_v2_move{name power priority move_effect_chance
+    pokemon_v2_type{name} pokemon_v2_movedamageclass{name} pokemon_v2_movetarget{name} pokemon_v2_movemeta{min_hits max_hits}
+    pokemon_v2_moveattributemaps{pokemon_v2_moveattribute{name}} pokemon_v2_movechanges{power pokemon_v2_type{name} pokemon_v2_versiongroup{generation_id}}
+    pokemon_v2_movenames(where:{language_id:{_eq:3}}){name}}}}`).then(d=>d.pokemon_v2_pokemonmove);
   let r=await q(`{id:{_in:[${GAMES[S.game][2]}]}}`);
   for(let g=S.gen;!r.length&&g>=1;g--)r=await q(`{generation_id:{_eq:${g}}}`);
-  return mcache[k]=r.map(({pokemon_v2_move:m})=>({id:m.name,name:m.pokemon_v2_movenames[0]?.name||m.name,power:FIXED[m.name]?1:m.power||0,type:m.pokemon_v2_type.name,cls:m.pokemon_v2_movedamageclass.name}));
+  return mcache[k]=r.map(x=>toMove(x.pokemon_v2_move));
 }
 // 게임에 나오는 포켓몬(폼 포함) = 그 게임 기술 데이터가 있는 포켓몬. 지역도감보다 넓어서 전국도감/DLC까지 포함
 const dcache={};
@@ -147,12 +208,9 @@ async function dexOf(){
   const r=(await gql(`{pokemon_v2_pokemonmove(where:{version_group_id:{_in:[${GAMES[S.game][2]}]}},distinct_on:pokemon_id){pokemon_id}}`)).pokemon_v2_pokemonmove;
   return dcache[S.game]=new Set(r.map(x=>x.pokemon_id));
 }
-// 고정 데미지기: 레벨만큼 또는 고정값 (타입 무효는 적용)
-const FIXED={'seismic-toss':'lvl','night-shade':'lvl','dragon-rage':40,'sonic-boom':20};
 const attacks=ms=>ms.filter(m=>m.power>0);
-// 최강기 추정 시 제외: 다음 턴 행동 불가 기술 (직접 설정하면 계산에 포함)
-const RECHARGE=['hyper-beam','giga-impact','blast-burn','hydro-cannon','frenzy-plant','rock-wrecker','roar-of-time','prismatic-laser','eternabeam','meteor-assault'];
-const usable=ms=>attacks(ms).filter(m=>!RECHARGE.includes(m.id));
+// 최강기 추정 시 제외: 반동으로 쉬는 기술, 2턴 기술(쾌청일 때 솔라빔/솔라블레이드는 허용). 직접 설정하면 계산에 포함
+const usable=(ms,sun)=>attacks(ms).filter(m=>!m.flags.includes('recharge')&&!(m.flags.includes('charge')&&!(sun&&m.id.startsWith('solar'))));
 
 // 성격: [이름, 올리는 능력치, 내리는 능력치]
 const NAT=[['외로움','attack','defense'],['고집','attack','special-attack'],['개구쟁이','attack','special-defense'],['용감','attack','speed'],
@@ -160,7 +218,7 @@ const NAT=[['외로움','attack','defense'],['고집','attack','special-attack']
   ['조심','special-attack','attack'],['의젓','special-attack','defense'],['덜렁','special-attack','special-defense'],['냉정','special-attack','speed'],
   ['차분','special-defense','attack'],['얌전','special-defense','defense'],['신중','special-defense','special-attack'],['건방','special-defense','speed'],
   ['겁쟁이','speed','attack'],['성급','speed','defense'],['명랑','speed','special-attack'],['천진난만','speed','special-defense']];
-// 실능력치. F={p, item, nature, ev:{능력치:값}} (ponytail: 1~2세대 노력치 체계 차이는 3세대 이후 공식으로 근사)
+// 실능력치. F={p, item, nature, ev:{능력치:값}} (ponytail: 1~2세대 노력치 체계·세대별 종족값 변화는 미반영, 데이터 없음)
 function stat(F,k){
   const b=Math.floor((2*F.p.stats[k]+S.iv+Math.floor((F.ev?.[k]||0)/4))*S.lvl/100);
   if(k==='hp')return b+S.lvl+10;
@@ -174,56 +232,107 @@ function oppCfg(o){
   if(S.oppPreset==='bulk')return {nature:'',ev:{hp:252,defense:128,'special-defense':128}};
   return {nature:'',ev:{}};
 }
+
 // 특성 보정용 표
 const WX={drought:'sun','desolate-land':'sun','orichalcum-pulse':'sun',drizzle:'rain','primordial-sea':'rain','sand-stream':'sand','snow-warning':'snow'};
+const TX={'electric-surge':'electric','hadron-engine':'electric','grassy-surge':'grassy','psychic-surge':'psychic','misty-surge':'misty'};
+const WX_SPD={'swift-swim':'rain',chlorophyll:'sun','sand-rush':'sand','slush-rush':'snow'};
 const ATE={pixilate:'fairy',refrigerate:'ice',aerilate:'flying',galvanize:'electric'};
 const MOLD=['mold-breaker','teravolt','turboblaze'];
-// 날씨: 직접 고른 날씨 우선, 없으면 날씨 특성 (ponytail: 둘 다 날씨 특성이면 공격 측 우선)
-// 배틀 상황 (저장 안 함): 랭크 {능력치: -6~+6}, 내 랭크 적용 대상 엔트리 번호, 급소 여부
-const B={opp:{},me:{},meIdx:0,crit:false};
+const WNAME={sun:'쾌청',rain:'비',sand:'모래바람',snow:'설경'},TNAME={electric:'일렉트릭필드',grassy:'그래스필드',psychic:'사이코필드',misty:'미스트필드'};
+
+// 배틀 상황 (저장 안 함)
+// side: 순풍·리플렉터·빛의장막 / me: 내 랭크·상태이상 적용 대상(meIdx) / 트릭룸·필드·급소
+const B={me:{rank:{},status:''},meIdx:0,meSide:{},oppSide:{},trickRoom:false,terrain:'',crit:false};
 const rk=s=>(s=Math.max(-6,Math.min(6,s)))>=0?(2+s)/2:2/(2-s);
-const spdOf=F=>Math.floor(stat(F,'speed')*rk(F.rank?.speed||0));
+// 날씨·필드: 직접 고른 것 우선, 없으면 특성 (ponytail: 둘 다 특성이면 공격 측 우선)
+const weatherOf=(X,Y)=>S.weather||WX[X.ab]||WX[Y.ab]||'';
+const terrainOf=(X,Y)=>S.gen<6?'':B.terrain||TX[X.ab]||TX[Y.ab]||'';
+// 스피드: 랭크, 구애스카프, 순풍, 마비, 날씨 특성
+function spdOf(F,W=''){
+  let s=stat(F,'speed')*rk(F.rank?.speed||0);
+  if(F.item==='scarf')s*=1.5;
+  if(F.side?.tail)s*=2;
+  if(F.status==='para')s*=S.gen>=7?.5:.25;
+  if(W&&WX_SPD[F.ab]===W)s*=2;
+  return Math.floor(s);
+}
 // 방어 타입: 테라스탈하면 테라 타입 하나로 바뀜
 const defTypes=F=>F.tera?[F.tera]:typesOf(F.p);
-const weatherOf=(X,Y)=>S.weather||WX[X.ab]||WX[Y.ab]||'';
-// 5세대 이후 데미지 공식 기준 (ponytail: 1~4세대 공식 차이, 급소, 랭크변화, 접촉/부가효과 의존 특성은 미반영)
+const grounded=F=>!defTypes(F).includes('flying')&&F.ab!=='levitate'&&F.item!=='balloon';
+const SPREAD=['all-opponents','all-other-pokemon'];
+
+function powerOf(X,Y,m,W){
+  if(VARP[m.id])return VARP[m.id](X,Y,W);
+  let p=m.base;
+  if(m.id==='knock-off'&&S.gen>=6)p*=1.5; // 상대가 도구를 들고 있다고 가정
+  if(m.id==='acrobatics'&&!X.item)p*=2;
+  if(m.id==='facade'&&X.status)p*=2;
+  if(m.id==='hex'&&Y.status)p*=2;
+  if(m.id==='weather-ball'&&W)p*=2;
+  return p;
+}
+// 데미지 계산 (5세대 이후 공식 기준. ponytail: 1~4세대 공식 차이는 미반영)
+// X 공격자, Y 방어자: {p, item, ab, tera, nature, ev, rank, status, side}
 function dmg(X,Y,m){
-  const attItem=X.item,defItem=Y.item,xa=X.ab||'',ya=MOLD.includes(xa)?'':Y.ab||'',W=weatherOf(X,Y);
-  const at=typesOf(X.p),dt=defTypes(Y);
-  let type=m.type,pw=m.power,cls=m.cls;
-  // 테라버스트: 테라스탈 시 테라 타입, 공격/특공 중 높은 쪽으로
-  if(X.tera&&m.id==='tera-blast'){type=X.tera;cls=stat(X,'attack')>stat(X,'special-attack')?'physical':'special'}
-  else if(ATE[xa]&&type==='normal'){type=ATE[xa];pw*=S.gen>=7?1.2:1.3}
-  if(X.tera===type&&pw<60)pw=60; // ponytail: 연속기·선공기 예외는 미반영
+  const attItem=X.item,defItem=Y.item,xa=X.ab||'',ya=MOLD.includes(xa)?'':Y.ab||'',W=weatherOf(X,Y),T=terrainOf(X,Y);
+  const at=typesOf(X.p),dt=defTypes(Y),hp=stat(Y,'hp');
+  let type=m.type,cls=m.cls,ate=false;
+  if(X.tera&&m.id==='tera-blast'){type=X.tera;cls=stat(X,'attack')>stat(X,'special-attack')?'physical':'special'} // 테라버스트
+  else if(m.id==='weather-ball'&&W)type={sun:'fire',rain:'water',sand:'rock',snow:'ice'}[W];
+  else if(ATE[xa]&&type==='normal'){type=ATE[xa];ate=true}
+  let hits=m.hits;if(hits&&xa==='skill-link')hits=[hits[1],hits[1]];
   let e=eff(type,xa==='scrappy'&&(type==='normal'||type==='fighting')?dt.filter(t=>t!=='ghost'):dt);
-  if(IMM[ya]===type||ya==='wonder-guard'&&e<=1)e=0;
-  if(FIXED[m.id]){const hp=stat(Y,'hp'),v=e?(FIXED[m.id]==='lvl'?S.lvl:FIXED[m.id]):0,ko=v?Math.ceil(hp/v):Infinity;return {m,type,e:e?1:0,lo:v/hp*100,hi:v/hp*100,ko,koHi:ko}}
+  if(IMM[ya]===type||ya==='wonder-guard'&&e<=1||defItem==='balloon'&&type==='ground')e=0;
+  const out={m,type,e,hits:hits?(hits[0]===hits[1]?`${hits[0]}회`:`${hits[0]}~${hits[1]}회`):'',spread:S.doubles&&SPREAD.includes(m.target)};
+  if(FIXED[m.id]){
+    const f=FIXED[m.id],v=!e?0:f==='lvl'?S.lvl:f==='half'?Math.floor(hp/2):f,ko=!v||f==='half'?Infinity:Math.ceil(hp/v);
+    return {...out,e:e?1:0,lo:v/hp*100,hi:v/hp*100,avg:v,ko,koHi:ko};
+  }
+  let pw=powerOf(X,Y,m,W);
+  if(ate)pw*=S.gen>=7?1.2:1.3;
+  if(X.tera===type&&pw<60&&!hits&&m.prio<=0)pw=60; // 테라 타입 기술 위력 60 보정 (연속기·선공기 제외)
   const phys=S.gen<4?PHYS_TYPES.includes(type):cls==='physical';
   let A=stat(X,phys?'attack':'special-attack'),D=stat(Y,phys?'defense':'special-defense');
   if(attItem==='band'&&phys||attItem==='specs'&&!phys)A*=1.5;
   if(defItem==='vest'&&!phys||defItem==='eviolite')D*=1.5;
   if(W==='sand'&&!phys&&S.gen>=4&&dt.includes('rock'))D*=1.5;
   if(W==='snow'&&phys&&S.gen>=9&&dt.includes('ice'))D*=1.5;
-  // 공격 측 특성: 능력치/위력
+  // 공격 측 특성: 능력치
   if(phys&&(xa==='huge-power'||xa==='pure-power'))A*=2;
   if(phys&&(xa==='hustle'||xa==='gorilla-tactics'))A*=1.5;
+  if(phys&&xa==='guts'&&X.status)A*=1.5;
   if(!phys&&xa==='solar-power'&&W==='sun')A*=1.5;
   // 랭크: 위협은 공격 -1 자동 반영. 급소면 공격 측 마이너스·방어 측 플러스 랭크 무시
   let as=(X.rank?.[phys?'attack':'special-attack']||0)+(phys&&ya==='intimidate'?-1:0),ds=Y.rank?.[phys?'defense':'special-defense']||0;
   if(B.crit){as=Math.max(as,0);ds=Math.min(ds,0)}
   A*=rk(as);D*=rk(ds);
   if(phys&&ya==='fur-coat')D*=2;
+  // 위력 보정: 특성·도구·필드 (기술 속성은 PokeAPI 데이터 기준)
+  const fl=m.flags;
   if(xa==='technician'&&pw<=60)pw*=1.5;
-  if(xa==='iron-fist'&&m.id.includes('punch'))pw*=1.2; // ponytail: 이름에 punch 포함으로 펀치기 판정
-  const base=Math.floor(Math.floor(Math.floor(2*S.lvl/5+2)*Math.floor(pw)*A/D)/50)+2;
+  if(xa==='iron-fist'&&fl.includes('punch'))pw*=1.2;
+  if(xa==='strong-jaw'&&fl.includes('bite'))pw*=1.5;
+  if(xa==='mega-launcher'&&fl.includes('pulse'))pw*=1.5;
+  if(xa==='tough-claws'&&fl.includes('contact'))pw*=1.3;
+  if(xa==='punk-rock'&&fl.includes('sound'))pw*=1.3;
+  if(xa==='sheer-force'&&m.chance>0)pw*=1.3;
+  if(attItem==='b-'+type)pw*=1.2;
+  if(attItem==='muscle'&&phys||attItem==='wise'&&!phys)pw*=1.1;
+  if(T&&grounded(X)&&(T==='electric'&&type==='electric'||T==='grassy'&&type==='grass'||T==='psychic'&&type==='psychic'))pw*=S.gen>=8?1.3:1.5;
+  if(T==='misty'&&type==='dragon'&&grounded(Y))pw*=.5;
+  if(T==='grassy'&&['earthquake','bulldoze','magnitude'].includes(m.id)&&grounded(Y))pw*=.5;
   // 자속: 원래 타입 1.5, 테라 타입 1.5, 테라 타입 = 원래 타입이면 2 (적응력이면 각각 2 / 2.25)
   let stab=at.includes(type)||xa==='protean'||xa==='libero'?1.5:1;
   if(X.tera===type)stab=at.includes(type)?2:1.5;
   if(xa==='adaptability'&&stab>1)stab=stab===2?2.25:2;
   let mod=e*stab;
+  if(out.spread)mod*=.75;
   if(B.crit)mod*=S.gen>=6?1.5:2;
   if(W==='sun')mod*=type==='fire'?1.5:type==='water'?.5:1;
   if(W==='rain')mod*=type==='water'?1.5:type==='fire'?.5:1;
+  if(phys&&X.status==='burn'&&xa!=='guts'&&!(m.id==='facade'&&S.gen>=6))mod*=.5;
+  if(!B.crit&&(phys&&Y.side?.reflect||!phys&&Y.side?.light))mod*=S.doubles?2/3:.5;
   if(attItem==='lifeorb')mod*=1.3;
   if(attItem==='belt'&&e>1)mod*=1.2;
   if(xa==='tinted-lens'&&e<1)mod*=2;
@@ -232,20 +341,40 @@ function dmg(X,Y,m){
   if(xa==='water-bubble'&&type==='water')mod*=2;
   // 방어 측 특성
   if(ya==='thick-fat'&&(type==='fire'||type==='ice')||ya==='heatproof'&&type==='fire'||ya==='water-bubble'&&type==='fire'||ya==='purifying-salt'&&type==='ghost')mod*=.5;
-  if(ya==='dry-skin'&&type==='fire')mod*=1.25;
+  if(ya==='dry-skin'&&type==='fire'||ya==='fluffy'&&type==='fire')mod*=ya==='fluffy'?2:1.25;
+  if(ya==='fluffy'&&fl.includes('contact'))mod*=.5;
+  if(ya==='punk-rock'&&fl.includes('sound'))mod*=.5;
   if(['filter','solid-rock','prism-armor'].includes(ya)&&e>1)mod*=.75;
   if(ya==='multiscale'||ya==='shadow-shield')mod*=.5; // HP 가득 찬 상태 가정
   if(ya==='ice-scales'&&!phys)mod*=.5;
-  const hp=stat(Y,'hp'),lo=Math.floor(base*.85*mod),hi=Math.floor(base*mod);
-  let ko=lo?Math.ceil(hp/lo):Infinity,koHi=hi?Math.ceil(hp/hi):Infinity;
-  if((defItem==='sash'||ya==='sturdy'&&S.gen>=5)&&koHi===1){ko=Math.max(ko,2);koHi=2}
-  return {m,type,e,lo:lo/hp*100,hi:hi/hp*100,ko,koHi};
+  // 1타당 데미지 → 연속기면 합계 (위력이 오르는 연속기는 위력별로 따로 계산)
+  const core=p=>Math.floor(Math.floor(Math.floor(2*S.lvl/5+2)*Math.floor(p)*A/D)/50)+2;
+  const per=p=>[Math.floor(core(p)*.85*mod),Math.floor(core(p)*mod)];
+  // avg: 최강기 비교용 기대 데미지 (2~5회 연속기는 평균 3.1회, 4세대까지 3회)
+  let lo,hi,avg;
+  if(ESC[m.id]){lo=hi=0;for(const p of ESC[m.id]){const [a,b]=per(p);lo+=a;hi+=b}avg=(lo+hi)/2}
+  else{[lo,hi]=per(pw);const n=!hits?1:hits[0]===hits[1]?hits[0]:hits[0]===2&&hits[1]===5?(S.gen>=5?3.1:3):(hits[0]+hits[1])/2;
+    avg=(lo+hi)/2*n;if(hits){lo*=hits[0];hi*=hits[1]}}
+  // 확정 몇 타: 반감열매는 첫 공격만 반감, 기합의띠·옹골참은 HP 가득일 때 1타 버팀 (연속기에는 무효)
+  const bm=defItem==='berry'&&e>1?.5:1;
+  const koN=(first,rest)=>first<=0?Infinity:first>=hp?1:rest<=0?Infinity:1+Math.ceil((hp-first)/rest);
+  let ko=koN(Math.floor(lo*bm),lo),koHi=koN(Math.floor(hi*bm),hi);
+  if((defItem==='sash'||ya==='sturdy'&&S.gen>=5)&&!hits){if(ko===1)ko=2;if(koHi===1)koHi=2}
+  return {...out,lo:Math.floor(lo*bm)/hp*100,hi:Math.floor(hi*bm)/hp*100,avg:avg*bm,ko,koHi};
 }
-const best=(X,Y,ms)=>ms.map(m=>dmg(X,Y,m)).sort((a,b)=>b.hi-a.hi)[0];
-{const s={...S};S.iv=31;S.lvl=50;console.assert(stat({p:{stats:{attack:100}},nature:'고집',ev:{attack:252}},'attack')===167,'stat formula broken');Object.assign(S,s)}
-const koTxt=r=>!r||r.ko===Infinity?'데미지 없음':r.ko===r.koHi?`확정 ${r.ko}타`:`난수 ${r.koHi}타`;
+const best=(X,Y,ms)=>ms.map(m=>dmg(X,Y,m)).sort((a,b)=>(b.avg??b.hi)-(a.avg??a.hi))[0];
+// 행동 순서: 우선도 → 스피드 (트릭룸이면 반대). 1=X 먼저, -1=Y 먼저, 0=동속
+function order(X,Y,rx,ry){
+  const px=rx?.m.prio||0,py=ry?.m.prio||0,W=weatherOf(X,Y);
+  if(px!==py)return {v:px>py?1:-1,why:'우선도'};
+  const sx=spdOf(X,W),sy=spdOf(Y,W);
+  return {v:sx===sy?0:(sx>sy)!==B.trickRoom?1:-1,why:B.trickRoom?'트릭룸':'',sx,sy};
+}
+const koTxt=r=>!r||r.ko===Infinity?(r&&r.lo>0?'확정 타수 없음':'데미지 없음'):r.ko===r.koHi?`확정 ${r.ko}타`:`난수 ${r.koHi}타`;
 const pct=r=>r?`${r.lo.toFixed(0)}~${r.hi.toFixed(0)}%`:'-';
 console.assert(eff('electric',['ground'])===0&&eff('rock',['fire','flying'])===4&&eff('fire',['water'])===.5,'type chart broken');
+{const s={...S};S.iv=31;S.lvl=50;console.assert(stat({p:{stats:{attack:100}},nature:'고집',ev:{attack:252}},'attack')===167,'stat formula broken');Object.assign(S,s)}
+console.assert(wtPow(210)===120&&wtPow(9.9)===20&&ratioPow(5)===120&&ratioPow(1.9)===40,'variable power broken');
 
 // 검색: 이름(한/영) 또는 도감번호, 폼까지 펼쳐서 표시
 function wire(inp,box,pick){
@@ -267,14 +396,17 @@ function wire(inp,box,pick){
   },250)};
 }
 
-// 엔트리: [{id, item, moves:[기술 id]}]
-let team=JSON.parse(localStorage.team||'[]').map(x=>typeof x==='number'?{id:x,item:'',moves:[]}:x),opp=null,editing=-1;
-const save=()=>{localStorage.team=JSON.stringify(team);localStorage.settings=JSON.stringify(S)};
+// 팀: {팀 이름: [{id, item, ability, tera, nature, ev, moves:[기술 id]}]}. 예전 단일 엔트리(localStorage.team)는 "기본 팀"으로 옮김
+let TEAMS=JSON.parse(localStorage.teams||'null')||{'기본 팀':JSON.parse(localStorage.team||'[]').map(x=>typeof x==='number'?{id:x,item:'',moves:[]}:x)};
+let teamName=TEAMS[localStorage.teamName]?localStorage.teamName:Object.keys(TEAMS)[0];
+let team=TEAMS[teamName],editing=-1;
+const save=()=>{TEAMS[teamName]=team;localStorage.teams=JSON.stringify(TEAMS);localStorage.teamName=teamName;localStorage.settings=JSON.stringify(S)};
 const tag=ts=>ts.map(t=>`<span class="t" style="background:${COL[t]}">${KO[t]}</span>`).join('');
 const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
 const fx=v=>`<span class="x x${String(v).replace('.','')}">×${v}</span>`;
-const itemOpts=v=>Object.entries(ITEMS).map(([k,n])=>`<option value="${k}"${k===v?' selected':''}>${n}</option>`).join('');
-const refresh=()=>{save();renderTeam();opp&&show(opp)};
+const itemOpts=v=>{const o=([k,n])=>`<option value="${k}"${k===v?' selected':''}>${n}</option>`,e=Object.entries(ITEMS);
+  return e.filter(([k])=>!k.startsWith('b-')).map(o).join('')+`<optgroup label="타입 강화 도구">${e.filter(([k])=>k.startsWith('b-')).map(o).join('')}</optgroup>`};
+const refresh=()=>{save();renderTeam();show()};
 // 테라스탈은 9세대만
 const teraSelect=(sid,v)=>S.gen===9?`<label>테라스탈 <select id="${sid}"><option value="">안 함</option>${ALL.map(t=>`<option value="${t}"${t===v?' selected':''}>${KO[t]}</option>`).join('')}</select></label>`:'';
 const teraTag=F=>F.tera?` <span class="t" style="background:${COL[F.tera]};outline:2px dashed #fff8">테라 ${KO[F.tera]}</span>`:'';
@@ -282,10 +414,14 @@ const teraTag=F=>F.tera?` <span class="t" style="background:${COL[F.tera]};outli
 const pickAb=(p,id)=>{const a=abilitiesOf(p);return (a.find(x=>x.id===id)||a[0])?.id||''};
 const abSelect=(sid,p,id)=>{const a=abilitiesOf(p);return a.length?`<label>특성 <select id="${sid}">${a.map(x=>`<option value="${x.id}"${x.id===id?' selected':''}>${x.name}${x.hidden?' (숨특)':''}</option>`).join('')}</select></label>`:''};
 
+function renderTeamBar(){
+  teamSel.innerHTML=Object.keys(TEAMS).map(n=>`<option${n===teamName?' selected':''}>${n.replace(/</g,'&lt;')}</option>`).join('');
+}
 async function renderTeam(){
+  renderTeamBar();
   const ps=await Promise.all(team.map(t=>load(t.id))),dex=await dexOf();
-  document.getElementById('team').innerHTML=ps.map((p,i)=>`<div class="card${i===editing?' sel':''}" style="margin:0;text-align:center;cursor:pointer" onclick="editing=${i===editing?-1:i};renderTeam()"><img src="${sprite(p.id)}"><div>${p.name}</div><div>${tag(typesOf(p))}</div>${dex.size&&!dex.has(p.id)?'<div class="warn" style="font-size:12px">⚠ 이 게임에 없음</div>':''}<div class="mut">${[S.gen===9&&team[i].tera&&'테라 '+KO[team[i].tera],team[i].nature,team[i].item&&ITEMS[team[i].item],team[i].moves.length&&'기술 '+team[i].moves.length+'개'].filter(Boolean).join(' · ')}</div></div>`).join('')||'<span class="mut">비어 있음</span>';
-  renderEdit();
+  document.getElementById('team').innerHTML=ps.map((p,i)=>`<div class="card${i===editing?' sel':''}" style="margin:0;text-align:center;cursor:pointer" onclick="editing=${i===editing?-1:i};renderTeam()"><img src="${sprite(p.id)}"><div>${p.name}</div><div>${tag(typesOf(p))}</div>${dex.size&&!dex.has(p.id)?'<div class="warn" style="font-size:12px">⚠ 이 게임에 없음</div>':''}<div class="mut">${[S.gen===9&&team[i].tera&&'테라 '+KO[team[i].tera],team[i].nature,team[i].item&&ITEMS[team[i].item]?.split(' (')[0],team[i].moves.length&&'기술 '+team[i].moves.length+'개'].filter(Boolean).join(' · ')}</div></div>`).join('')||'<span class="mut">비어 있음</span>';
+  renderEdit();renderAnalysis();
 }
 // 엔트리 편집: 도구 + 기술 4개 (비워두면 배울 수 있는 기술 중 최강기로 계산)
 async function renderEdit(){
@@ -298,99 +434,182 @@ async function renderEdit(){
     <div class="row" style="margin-top:6px">노력치 ${Object.entries(STAT).map(([k,n])=>`<label>${n} <input class="eEv" data-k="${k}" type="number" min="0" max="252" step="4" value="${t.ev?.[k]||0}" style="width:64px"></label>`).join('')}
       <span id="evSum" class="mut"></span></div>
     <div class="row" style="margin-top:6px">${[0,1,2,3].map(i=>`<input list="mlist" class="eMove" placeholder="기술 ${i+1}" value="${nm(t.moves[i])}" style="width:150px">`).join('')}</div>
-    <datalist id="mlist">${ms.map(m=>`<option value="${m.name}">${KO[m.type]} ${FIXED[m.id]?'고정 데미지':m.power||'변화'}</option>`).join('')}</datalist>
-    <div class="mut">기술을 비워두면 배울 수 있는 기술 중 가장 센 기술로 계산해요. 변화기는 저장만 되고 데미지 계산에선 빠져요.</div>
+    <datalist id="mlist">${ms.map(m=>`<option value="${m.name}">${KO[m.type]} ${moveLabel(m)}</option>`).join('')}</datalist>
+    <div class="mut">기술을 비워두면 배울 수 있는 기술 중 가장 센 기술로 계산해요 (반동기·2턴 기술 제외). 변화기는 저장만 되고 데미지 계산에선 빠져요.</div>
     <div class="row" style="margin-top:6px"><button onclick="team.splice(editing,1);editing=-1;refresh()">엔트리에서 삭제</button></div></div>`;
   el.querySelector('#eItem').onchange=e=>{t.item=e.target.value;refresh()};
   const ea=el.querySelector('#eAb');if(ea)ea.onchange=e=>{t.ability=e.target.value;refresh()};
   const et=el.querySelector('#eTera');if(et)et.onchange=e=>{t.tera=e.target.value;refresh()};
   el.querySelector('#eNat').onchange=e=>{t.nature=e.target.value;refresh()};
-  const evSum=()=>{const s=Object.values(t.ev||{}).reduce((a,b)=>a+b,0);el.querySelector('#evSum').innerHTML=s>510?`<span class="warn">합계 ${s} / 510 초과</span>`:`합계 ${s} / 510`};
-  evSum();
+  const s=Object.values(t.ev||{}).reduce((a,b)=>a+b,0);
+  el.querySelector('#evSum').innerHTML=s>510?`<span class="warn">합계 ${s} / 510 초과</span>`:`합계 ${s} / 510`;
   el.querySelectorAll('.eEv').forEach(inp=>inp.onchange=()=>{
     t.ev={...t.ev,[inp.dataset.k]:Math.max(0,Math.min(252,+inp.value||0))};refresh()});
   el.querySelectorAll('.eMove').forEach(inp=>inp.onchange=()=>{
     t.moves=[...el.querySelectorAll('.eMove')].map(i=>ms.find(m=>m.name===i.value.trim())?.id).filter(Boolean);refresh()});
 }
+// 팀 분석: 타입별로 내 엔트리가 받는 배율(특성·풍선 무효 반영, 테라스탈 전 기준) + 효과가 굉장한 공격이 없는 타입
+async function renderAnalysis(){
+  const el=document.getElementById('analysis');
+  if(!team.length){el.innerHTML='';return}
+  const mem=await Promise.all(team.map(async t=>{const p=await load(t.id),all=await movesOf(t.id),set=attacks(t.moves.map(x=>all.find(m=>m.id===x)).filter(Boolean));
+    return {p,ab:pickAb(p,t.ability),item:t.item,atk:set.length?[...new Set(set.map(m=>m.type))]:typesOf(p),guess:!set.length}}));
+  const rows=types().map(a=>{const v=mem.map(x=>IMM[x.ab]===a||x.item==='balloon'&&a==='ground'?0:eff(a,typesOf(x.p)));
+    const weak=v.filter(x=>x>1).length,res=v.filter(x=>x<1).length;return {a,v,weak,res,bad:weak>=3||weak>=2&&!res}});
+  const gap=types().filter(d=>!mem.some(x=>x.atk.some(a=>eff(a,[d])>1)));
+  const open=localStorage.anaOpen!=='0';
+  el.innerHTML=`<details class="card" ${open?'open':''} ontoggle="localStorage.anaOpen=this.open?1:0"><summary>팀 분석</summary>
+    <div class="mut" style="margin:4px 0">빨간 줄: 약점이 3마리 이상이거나, 2마리 이상인데 반감 이하가 없는 타입</div>
+    <div class="scroll"><table><tr><th>공격 타입</th>${mem.map(x=>`<th><img src="${sprite(x.p.id)}" style="width:32px;height:32px" title="${x.p.name}"></th>`).join('')}<th>약점</th><th>반감↓</th></tr>
+    ${rows.map(r=>`<tr class="${r.bad?'bad':''}"><td>${tag([r.a])}</td>${r.v.map(v=>`<td>${v===1?'<span class="mut">·</span>':fx(v)}</td>`).join('')}<td>${r.weak||''}</td><td>${r.res||''}</td></tr>`).join('')}</table></div>
+    <div style="margin-top:8px"><b>효과가 굉장한 공격이 없는 타입</b> ${gap.length?tag(gap):'<span class="win">없음 — 모든 타입을 찌를 수 있어요</span>'}</div>
+    ${mem.some(x=>x.guess)?'<div class="mut">기술을 설정하지 않은 포켓몬은 자기 타입 기술만 있다고 보고 계산했어요.</div>':''}</details>`;
+}
 
-let oppAb='',oppTera='';
+// 상대 슬롯 (싱글은 A만 사용). 슬롯마다 특성·테라·도구·랭크·상태이상
+const newSlot=()=>({id:null,ab:'',tera:'',item:'',rank:{},status:''});
+const OPP=[newSlot(),newSlot()];let act=0;
+const slots=()=>S.doubles?OPP:OPP.slice(0,1);
+// 최근 본 상대 (최대 10)
+let RECENT=JSON.parse(localStorage.recent||'[]');
+async function renderRecent(){
+  const ps=await Promise.all(RECENT.map(load));
+  document.getElementById('recent').innerHTML=ps.length?`<span class="mut">최근:</span>${ps.map(p=>`<button class="chip" onclick="pickOpp(${p.id})"><img src="${sprite(p.id)}">${p.name}</button>`).join('')}`:'';
+}
+function pickOpp(id){
+  if(OPP[act].id!==id)OPP[act]={...newSlot(),id};
+  RECENT=[id,...RECENT.filter(x=>x!==id)].slice(0,10);localStorage.recent=JSON.stringify(RECENT);
+  renderRecent();show();
+}
+async function renderSlots(){
+  if(!S.doubles){document.getElementById('slots').innerHTML='';act=0;return}
+  const names=await Promise.all(OPP.map(o=>o.id?load(o.id).then(p=>p.name):'비어 있음'));
+  document.getElementById('slots').innerHTML=OPP.map((o,i)=>`<button class="tab${i===act?' on':''}" onclick="act=${i};show()">상대 ${'AB'[i]}: ${names[i]}</button>`).join('')+'<span class="mut">← 검색하면 선택한 칸에 들어가요</span>';
+}
+
 // 상대가 실제로 쓴 기술: {포켓몬 id: [기술 id]} — 다음에 같은 포켓몬을 만나도 남아 있음
 let SEEN=JSON.parse(localStorage.seen||'{}');
 const saveSeen=()=>localStorage.seen=JSON.stringify(SEEN);
-async function show(id){
-  if(id!==opp){oppAb=oppTera='';B.opp={}}
-  opp=id;const o=await load(id),ot=typesOf(o),allO=await movesOf(id),oms=usable(allO);
-  const seen=(SEEN[id]||[]).map(x=>allO.find(m=>m.id===x)).filter(Boolean),seenAtk=attacks(seen);
+const RK=['attack','defense','special-attack','special-defense','speed'];
+const rkTxt=r=>RK.filter(k=>r[k]).map(k=>`${STAT[k]}${r[k]>0?'+':''}${r[k]}`).join(' ');
+const STATUS={'':'없음',burn:'화상',para:'마비'};
+
+async function show(){
+  renderSlots();
+  const out=document.getElementById('out'),O=OPP[act];
+  if(!O.id){out.innerHTML='';return}
+  // 상대 슬롯별 전투 정보
+  const opps=await Promise.all(slots().filter(s=>s.id).map(async s=>{
+    const o=await load(s.id),all=await movesOf(s.id);s.ab=pickAb(o,s.ab);
+    const F={p:o,item:s.item,ab:s.ab,tera:S.gen===9&&s.tera||'',rank:s.rank,status:s.status,side:B.oppSide,...oppCfg(o)};
+    const seen=(SEEN[s.id]||[]).map(x=>all.find(m=>m.id===x)).filter(Boolean);
+    return {s,o,F,all,seen,seenAtk:attacks(seen),sun:weatherOf(F,{})==='sun'}}));
+  const cur=opps.find(x=>x.s===O),{o,F:OF,all:allO,seen,seenAtk}=cur,ot=typesOf(o),odt=defTypes(OF);
   const mine=await Promise.all(team.map(async(t,i)=>{const p=await load(t.id),all=await movesOf(t.id);
-    const set=t.moves.map(x=>all.find(m=>m.id===x)).filter(Boolean);return {p,t,F:{p,item:t.item,nature:t.nature,ev:t.ev,ab:pickAb(p,t.ability),tera:S.gen===9&&t.tera||'',rank:i===B.meIdx?B.me:{}},ms:set.length?attacks(set):usable(all),guess:!set.length}}));
-  oppAb=pickAb(o,oppAb);
-  const OF={p:o,item:S.oppItem,ab:oppAb,tera:S.gen===9&&oppTera||'',rank:B.opp,...oppCfg(o)},odt=defTypes(OF);
-  const RK=['attack','defense','special-attack','special-defense','speed'];
-  const rkRow=side=>RK.map(k=>`<label>${STAT[k]} <select class="rk" data-side="${side}" data-k="${k}">${[-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6].map(v=>`<option value="${v}"${v===(B[side][k]||0)?' selected':''}>${v>0?'+'+v:v}</option>`).join('')}</select></label>`).join('');
-  const rkTxt=r=>RK.filter(k=>r[k]).map(k=>`${STAT[k]}${r[k]>0?'+':''}${r[k]}`).join(' ');
+    const set=t.moves.map(x=>all.find(m=>m.id===x)).filter(Boolean),me=i===B.meIdx;
+    const F={p,item:t.item,nature:t.nature,ev:t.ev,ab:pickAb(p,t.ability),tera:S.gen===9&&t.tera||'',rank:me?B.me.rank:{},status:me?B.me.status:'',side:B.meSide};
+    return {p,t,F,ms:set.length?attacks(set):usable(all,(S.weather||WX[F.ab])==='sun'),guess:!set.length}}));
+  // 추천: 상대마다 (내가 몇 타에 잡나 vs 상대가 몇 타에 잡나) + 행동 순서. 더블이면 두 상대 점수 합
+  const rec=mine.map(x=>{
+    const vs=opps.map(op=>{
+      const oms=usable(op.all,op.sun),me=best(x.F,op.F,x.ms),th=best(op.F,x.F,op.seenAtk.length?op.seenAtk:oms);
+      const worst=op.seenAtk.length&&op.seen.length<4?best(op.F,x.F,oms):null,risk=worst&&th&&worst.hi>th.hi?worst:null;
+      const ord=order(x.F,op.F,me,th),a=me?me.ko:99,b=th?th.ko:99,win=a<b||a===b&&ord.v===1;
+      return {op,me,th,risk,ord,win,score:Math.min(b,99)-Math.min(a,99)+(ord.v===1?.5:0)}});
+    return {...x,vs,score:vs.reduce((a,v)=>a+v.score,0)}}).sort((a,b)=>b.score-a.score);
+  const threats=usable(allO,cur.sun).map(m=>({m,v:(m.base||60)*(ot.includes(m.type)?1.5:1)*(m.hits?m.hits[1]:1)})).sort((a,b)=>b.v-a.v).filter((x,i,a)=>a.findIndex(y=>y.m.type===x.m.type)===i).slice(0,6);
   const grp=v=>types().filter(t=>eff(t,odt)===v).map(t=>`<span class="t" style="background:${COL[t]}">${KO[t]}</span>`).join('')||'-';
   const abs=abilitiesOf(o),immune=abs.filter(a=>IMM[a.id]).map(a=>`${a.name}(${KO[IMM[a.id]]} 무효)`);
-  const ospd=spdOf(OF);
-  // 추천: 내가 몇 타에 잡는지 vs 상대가 몇 타에 잡는지, 같으면 스피드
-  // 상대 공격: 기록된 공격기가 있으면 그걸로, 4개 다 안 밝혀졌으면 미확인 최강기도 같이 표시
-  const rec=mine.map(x=>{const me=best(x.F,OF,x.ms),th=best(OF,x.F,seenAtk.length?seenAtk:oms),spd=spdOf(x.F);
-    const worst=seenAtk.length&&seen.length<4?best(OF,x.F,oms):null,risk=worst&&th&&worst.hi>th.hi?worst:null;
-    const a=me?me.ko:99,b=th?th.ko:99,win=a<b||a===b&&spd>ospd;
-    return {...x,me,th,risk,spd,win,score:Math.min(b,99)-Math.min(a,99)+(spd>ospd?.5:0)}}).sort((a,b)=>b.score-a.score);
-  const threats=oms.map(m=>({m,v:m.power*(ot.includes(m.type)?1.5:1)})).sort((a,b)=>b.v-a.v).filter((x,i,a)=>a.findIndex(y=>y.m.type===x.m.type)===i).slice(0,6);
-  document.getElementById('out').innerHTML=`
+  const rkSel=(path,r)=>RK.map(k=>`<label>${STAT[k]} <select class="rk" data-path="${path}" data-k="${k}">${[-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6].map(v=>`<option value="${v}"${v===(r[k]||0)?' selected':''}>${v>0?'+'+v:v}</option>`).join('')}</select></label>`).join('');
+  const stSel=(id,v)=>`<label>상태 <select id="${id}">${Object.entries(STATUS).map(([k,n])=>`<option value="${k}"${k===v?' selected':''}>${n}</option>`).join('')}</select></label>`;
+  const sideChk=(side,k,n)=>`<label><input type="checkbox" class="sideChk" data-side="${side}" data-k="${k}"${B[side][k]?' checked':''}> ${n}</label>`;
+  const W=S.weather||WX[OF.ab],T=S.gen>=6&&(B.terrain||TX[OF.ab]);
+  const atkLine=(arrow,who,r,note='')=>`<div>${arrow} ${who}: ${r?`${r.m.name}${r.hits?` (${r.hits})`:''} ${tag([r.type])} ${fx(r.e)} → ${pct(r)} (${koTxt(r)})${r.spread?' <span class="mut">범위기 ×0.75</span>':''}${r.m.prio>0?' <span class="mut">선공기</span>':''}`:'공격기 없음'}${note}</div>`;
+  const ordTxt=d=>d.ord.why==='우선도'?(d.ord.v===1?'선공 (우선도)':'후공 (상대 우선도)'):`스피드 ${d.ord.sx} vs ${d.ord.sy} ${d.ord.v===1?'(선공':d.ord.v===-1?'(후공':'(동속'}${d.ord.why?', '+d.ord.why:''})`;
+  out.innerHTML=`
   <div class="card"><div class="row"><img src="${sprite(o.id)}"><div><b>${o.name}</b><div>${tag(ot)}${teraTag(OF)}</div></div></div>
-    <div class="row" style="margin-top:6px">${teraSelect('oppTeraSel',OF.tera)}${abSelect('oppAbSel',o,oppAb)||'<span class="mut">특성 없음 (이 게임에는 특성이 없음)</span>'}${abs.length>1?'<span class="mut">← 상대 특성을 모르면 가능성 높은 쪽으로 골라보세요</span>':''}</div>
+    <div class="row" style="margin-top:6px">${teraSelect('oppTeraSel',OF.tera)}${abSelect('oppAbSel',o,OF.ab)||'<span class="mut">특성 없음 (이 게임에는 특성이 없음)</span>'}
+      <label>도구 <select id="oppItemSel">${itemOpts(O.item)}</select></label>${abs.length>1?'<span class="mut">← 상대 특성을 모르면 가능성 높은 쪽으로 골라보세요</span>':''}</div>
     ${immune.length?`<div class="warn">⚠ ${immune.join(', ')} — 특성에 따라 해당 타입 기술이 안 들어갈 수 있음</div>`:''}
     <div class="row" style="margin-top:6px"><b>상대가 쓴 기술</b>
       ${seen.map(m=>`<button class="seenRm" data-id="${m.id}" title="삭제">${m.name} ✕</button>`).join('')}
-      ${seen.length<4?`<input id="seenIn" list="olist" placeholder="기술 이름 입력 (${seen.length}/4)" style="width:170px"><datalist id="olist">${allO.filter(m=>!seen.includes(m)).map(m=>`<option value="${m.name}">${KO[m.type]} ${FIXED[m.id]?'고정 데미지':m.power||'변화'}</option>`).join('')}</datalist>`:''}
+      ${seen.length<4?`<input id="seenIn" list="olist" placeholder="기술 이름 입력 (${seen.length}/4)" style="width:170px"><datalist id="olist">${allO.filter(m=>!seen.includes(m)).map(m=>`<option value="${m.name}">${KO[m.type]} ${moveLabel(m)}</option>`).join('')}</datalist>`:''}
       ${seen.length?'<button id="seenClr">기록 초기화</button>':''}</div>
-    ${!S.weather&&WX[oppAb]?`<div class="warn">☀ 상대 특성으로 날씨가 바뀌어요: ${weather.querySelector(`option[value=${WX[oppAb]}]`).text} (데미지 계산에 반영)</div>`:''}</div>
-  <div class="card"><b>배틀 상황</b> <span class="mut">(저장 안 됨, 상대가 바뀌면 상대 랭크는 초기화)</span>
-    <div class="row" style="margin-top:6px"><b>상대 랭크</b> ${rkRow('opp')}</div>
-    ${mine.length?`<div class="row" style="margin-top:6px"><b>내 랭크</b> <select id="meIdx">${mine.map((x,i)=>`<option value="${i}"${i===B.meIdx?' selected':''}>${x.p.name}</option>`).join('')}</select> ${rkRow('me')}</div>`:''}
-    <div class="row" style="margin-top:6px"><label><input type="checkbox" id="crit"${B.crit?' checked':''}> 급소 맞았을 때 (×${S.gen>=6?1.5:2}, 불리한 랭크 무시)</label><button id="rkReset">랭크 초기화</button>
-    ${oppAb==='intimidate'||mine.some(x=>x.F.ab==='intimidate')?'<span class="mut">위협은 공격 -1로 자동 반영돼요</span>':''}</div></div>
+    ${!S.weather&&WX[OF.ab]?`<div class="warn">☀ 상대 특성으로 날씨가 바뀌어요: ${WNAME[WX[OF.ab]]} (데미지 계산에 반영)</div>`:''}
+    ${S.gen>=6&&!B.terrain&&TX[OF.ab]?`<div class="warn">상대 특성으로 필드가 깔려요: ${TNAME[TX[OF.ab]]} (데미지 계산에 반영)</div>`:''}</div>
+  <div class="card"><b>배틀 상황</b> <span class="mut">(저장 안 됨, 상대를 바꾸면 그 상대의 랭크·상태는 초기화)</span>
+    <div class="row" style="margin-top:6px"><b>상대${S.doubles?' '+'AB'[act]:''}</b> ${rkSel('opp',O.rank)} ${stSel('oppSt',O.status)}</div>
+    <div class="row" style="margin-top:2px"><span class="mut">상대 쪽 필드</span> ${sideChk('oppSide','tail','순풍')} ${sideChk('oppSide','reflect','리플렉터')} ${sideChk('oppSide','light','빛의장막')}</div>
+    ${mine.length?`<div class="row" style="margin-top:8px"><b>나</b> <select id="meIdx">${mine.map((x,i)=>`<option value="${i}"${i===B.meIdx?' selected':''}>${x.p.name}</option>`).join('')}</select> ${rkSel('me',B.me.rank)} ${stSel('meSt',B.me.status)}</div>
+    <div class="row" style="margin-top:2px"><span class="mut">내 쪽 필드</span> ${sideChk('meSide','tail','순풍')} ${sideChk('meSide','reflect','리플렉터')} ${sideChk('meSide','light','빛의장막')}</div>`:''}
+    <div class="row" style="margin-top:8px"><label><input type="checkbox" id="tr"${B.trickRoom?' checked':''}> 트릭룸</label>
+      ${S.gen>=6?`<label>필드 <select id="terrain"><option value="">없음/특성 따름</option>${Object.entries(TNAME).map(([k,n])=>`<option value="${k}"${k===B.terrain?' selected':''}>${n}</option>`).join('')}</select></label>`:''}
+      <label><input type="checkbox" id="crit"${B.crit?' checked':''}> 급소 (×${S.gen>=6?1.5:2}, 불리한 랭크·벽 무시)</label><button id="rkReset">전부 초기화</button></div>
+    ${OF.ab==='intimidate'||mine.some(x=>x.F.ab==='intimidate')?'<div class="mut">위협은 공격 -1로 자동 반영돼요</div>':''}</div>
   <div class="card"><b>방어 상성</b> (상대가 받는 데미지${OF.tera?', 테라스탈 후':''})
     <div>×4: ${grp(4)}</div><div>×2: ${grp(2)}</div><div>×½: ${grp(.5)}</div><div>×¼: ${grp(.25)}</div><div>×0: ${grp(0)}</div></div>
   <div class="card"><b>종족값</b> <span class="mut">(회색: Lv.${S.lvl} 실능력치, 노력치 가정 반영${OF.nature?' · '+OF.nature:''})</span><div class="grid">${Object.entries(STAT).map(([k,n])=>`<div>${n} ${o.stats[k]} <span class="mut">${stat(OF,k)}</span><div class="bar" style="width:${Math.min(o.stats[k]/2,100)}%"></div></div>`).join('')}</div></div>
-  <div class="card"><b>추천 출전 순서</b>
+  <div class="card"><b>추천 출전 순서</b>${S.doubles&&rec.length>1?` <span class="win">추천 선발: ${rec.slice(0,2).map(r=>r.p.name).join(' + ')}</span>`:''}
+    ${W?`<span class="mut"> · 날씨 ${WNAME[W]}</span>`:''}${T?`<span class="mut"> · ${TNAME[T]}</span>`:''}
     ${rec.map((r,i)=>`<div style="border-top:1px solid var(--bd);padding:6px 0">
-      <div class="row"><span>${i+1}.</span><img style="width:40px;height:40px" src="${sprite(r.p.id)}"><b>${r.p.name}</b>${tag(typesOf(r.p))}${teraTag(r.F)}${rkTxt(r.F.rank)?`<span class="mut">[랭크 ${rkTxt(r.F.rank)}]</span>`:''}<span class="${r.win?'win':'lose'}">${r.win?'유리':'불리'}</span><span class="mut">스피드 ${r.spd} vs ${ospd} ${r.spd>ospd?'(선공)':r.spd<ospd?'(후공)':'(동속)'}</span></div>
-      <div>▶ 내 공격: ${r.me?`${r.me.m.name} ${tag([r.me.type])} ${fx(r.me.e)} → ${pct(r.me)} (${koTxt(r.me)})`:'공격기 없음'}${r.guess?' <span class="mut">(기술 미설정 → 최강기 가정, 반동기 제외)</span>':''}</div>
-      <div>◀ ${seenAtk.length?'상대 (기록된 기술)':'상대 최강기'}: ${r.th?`${r.th.m.name} ${tag([r.th.type])} ${fx(r.th.e)} → ${pct(r.th)} (${koTxt(r.th)})`:'공격기 없음'}</div>
-      ${r.risk?`<div class="mut">⚠ 미확인 기술 최악의 경우: ${r.risk.m.name} ${tag([r.risk.type])} → ${pct(r.risk)} (${koTxt(r.risk)})</div>`:''}</div>`).join('')||'<span class="mut">엔트리를 먼저 추가하세요</span>'}</div>
+      <div class="row"><span>${i+1}.</span><img style="width:40px;height:40px" src="${sprite(r.p.id)}"><b>${r.p.name}</b>${tag(typesOf(r.p))}${teraTag(r.F)}${rkTxt(r.F.rank)?`<span class="mut">[랭크 ${rkTxt(r.F.rank)}]</span>`:''}${r.F.status?`<span class="mut">[${STATUS[r.F.status]}]</span>`:''}${r.guess?' <span class="mut">(기술 미설정 → 최강기 가정)</span>':''}</div>
+      ${r.vs.map(d=>`<div style="margin-left:${S.doubles?12:0}px">${S.doubles?`<b>vs ${d.op.o.name}</b> `:''}<span class="${d.win?'win':'lose'}">${d.win?'유리':'불리'}</span> <span class="mut">${ordTxt(d)}</span>
+        ${atkLine('▶','내 공격',d.me)}
+        ${atkLine('◀',d.op.seenAtk.length?'상대 (기록된 기술)':'상대 최강기',d.th)}
+        ${d.risk?`<div class="mut">⚠ 미확인 기술 최악의 경우: ${d.risk.m.name} ${tag([d.risk.type])} → ${pct(d.risk)} (${koTxt(d.risk)})</div>`:''}</div>`).join('')}</div>`).join('')||'<span class="mut">엔트리를 먼저 추가하세요</span>'}</div>
   <div class="card"><b>상대가 배울 수 있는 주요 공격기</b> <span class="mut">(✔ 기록된 기술 먼저, 나머지는 타입별 최고 위력)</span>
-    ${[...seenAtk.map(m=>({m,seen:1})),...threats.filter(t=>!seenAtk.includes(t.m))].map(({m,seen})=>`<div class="row">${seen?'<b>✔</b>':''}${tag([m.type])} ${m.name} <span class="mut">위력 ${m.power} · ${S.gen<4?(PHYS_TYPES.includes(m.type)?'물리':'특수'):m.cls==='physical'?'물리':'특수'}</span> ${mine.map(x=>`<span title="${x.p.name}">${fx(eff(m.type,defTypes(x.F)))}</span>`).join(' ')}</div>`).join('')}
+    ${[...seenAtk.map(m=>({m,seen:1})),...threats.filter(t=>!seenAtk.includes(t.m))].map(({m,seen})=>`<div class="row">${seen?'<b>✔</b>':''}${tag([m.type])} ${m.name} <span class="mut">${moveLabel(m)} · ${S.gen<4?(PHYS_TYPES.includes(m.type)?'물리':'특수'):m.cls==='physical'?'물리':'특수'}</span> ${mine.map(x=>`<span title="${x.p.name}">${fx(eff(m.type,defTypes(x.F)))}</span>`).join(' ')}</div>`).join('')}
     ${mine.length?`<div class="mut">배율 순서: ${mine.map(x=>x.p.name).join(', ')}</div>`:''}</div>`;
-  const os=document.getElementById('oppAbSel');if(os)os.onchange=()=>{oppAb=os.value;show(opp)};
-  const ots=document.getElementById('oppTeraSel');if(ots)ots.onchange=()=>{oppTera=ots.value;show(opp)};
-  document.querySelectorAll('.rk').forEach(s=>s.onchange=()=>{B[s.dataset.side][s.dataset.k]=+s.value;show(id)});
-  const mi=document.getElementById('meIdx');if(mi)mi.onchange=()=>{B.meIdx=+mi.value;show(id)};
-  document.getElementById('crit').onchange=e=>{B.crit=e.target.checked;show(id)};
-  document.getElementById('rkReset').onclick=()=>{B.opp={};B.me={};B.crit=false;show(id)};
-  const setSeen=ids=>{if(ids.length)SEEN[id]=ids;else delete SEEN[id];saveSeen();show(id)},ids=seen.map(m=>m.id);
-  const si=document.getElementById('seenIn');if(si)si.onchange=()=>{const m=allO.find(m=>m.name===si.value.trim());if(m&&!ids.includes(m.id))setSeen([...ids,m.id])};
-  document.querySelectorAll('.seenRm').forEach(b=>b.onclick=()=>setSeen(ids.filter(x=>x!==b.dataset.id)));
-  const sc=document.getElementById('seenClr');if(sc)sc.onclick=()=>setSeen([]);
+  const on=(sel,ev,fn)=>{const e=out.querySelector(sel);if(e)e[ev]=fn};
+  on('#oppAbSel','onchange',e=>{O.ab=e.target.value;show()});
+  on('#oppTeraSel','onchange',e=>{O.tera=e.target.value;show()});
+  on('#oppItemSel','onchange',e=>{O.item=e.target.value;show()});
+  on('#oppSt','onchange',e=>{O.status=e.target.value;show()});
+  on('#meSt','onchange',e=>{B.me.status=e.target.value;show()});
+  on('#meIdx','onchange',e=>{B.meIdx=+e.target.value;show()});
+  on('#tr','onchange',e=>{B.trickRoom=e.target.checked;show()});
+  on('#terrain','onchange',e=>{B.terrain=e.target.value;show()});
+  on('#crit','onchange',e=>{B.crit=e.target.checked;show()});
+  on('#rkReset','onclick',()=>{Object.assign(B,{me:{rank:{},status:''},meSide:{},oppSide:{},trickRoom:false,terrain:'',crit:false});OPP.forEach(s=>{s.rank={};s.status=''});show()});
+  out.querySelectorAll('.rk').forEach(s=>s.onchange=()=>{(s.dataset.path==='opp'?O.rank:B.me.rank)[s.dataset.k]=+s.value;show()});
+  out.querySelectorAll('.sideChk').forEach(c=>c.onchange=()=>{B[c.dataset.side][c.dataset.k]=c.checked;show()});
+  const setSeen=ids=>{if(ids.length)SEEN[O.id]=ids;else delete SEEN[O.id];saveSeen();show()},ids=seen.map(m=>m.id);
+  on('#seenIn','onchange',e=>{const m=allO.find(m=>m.name===e.target.value.trim());if(m&&!ids.includes(m.id))setSeen([...ids,m.id])});
+  out.querySelectorAll('.seenRm').forEach(b=>b.onclick=()=>setSeen(ids.filter(x=>x!==b.dataset.id)));
+  on('#seenClr','onclick',()=>setSeen([]));
 }
+
+// 팀 관리
+const uniq=n=>{let k=n,i=2;while(TEAMS[k])k=`${n} (${i++})`;return k};
+teamSel.onchange=()=>{save();teamName=teamSel.value;team=TEAMS[teamName];editing=-1;B.meIdx=0;refresh()};
+tNew.onclick=()=>{const n=prompt('새 팀 이름');if(!n)return;save();teamName=uniq(n.trim());team=TEAMS[teamName]=[];editing=-1;refresh()};
+tRen.onclick=()=>{const n=prompt('팀 이름 변경',teamName);if(!n||n===teamName)return;const k=uniq(n.trim());TEAMS[k]=team;delete TEAMS[teamName];teamName=k;refresh()};
+tDel.onclick=()=>{if(!confirm(`"${teamName}" 팀을 삭제할까요?`))return;delete TEAMS[teamName];if(!Object.keys(TEAMS).length)TEAMS['기본 팀']=[];teamName=Object.keys(TEAMS)[0];team=TEAMS[teamName];editing=-1;refresh()};
+// 내보내기: 모든 팀 + 상대 기술 기록을 JSON 파일로. 가져오기: 같은 이름 팀은 "(2)"를 붙여 추가
+tExp.onclick=()=>{save();const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'pokemon-supporter',version:1,teams:TEAMS,seen:SEEN},null,1)],{type:'application/json'}));
+  a.download=`pokemon-supporter-${new Date().toISOString().slice(0,10)}.json`;a.click()};
+tImp.onchange=async()=>{const f=tImp.files[0];tImp.value='';if(!f)return;
+  try{const d=JSON.parse(await f.text());if(!d.teams)throw 0;save();
+    for(const [n,t] of Object.entries(d.teams))if(Array.isArray(t))TEAMS[TEAMS[n]&&JSON.stringify(TEAMS[n])!==JSON.stringify(t)?uniq(n):n]=t.filter(x=>x&&Number.isInteger(x.id)).map(x=>({item:'',moves:[],...x}));
+    for(const [id,ms] of Object.entries(d.seen||{}))if(Array.isArray(ms))SEEN[id]=[...new Set([...(SEEN[id]||[]),...ms])].slice(0,4);
+    saveSeen();refresh();alert(`팀 ${Object.keys(d.teams).length}개를 가져왔어요.`)}
+  catch{alert('포켓몬 서포터에서 내보낸 파일이 아니에요.')}};
 
 // 설정 바
 game.innerHTML=Object.entries(GAMES).map(([id,[n,g]])=>`<option value="${id}">${n} (${g}세대)</option>`).join('');
-oppItem.innerHTML=itemOpts(S.oppItem);
-game.value=S.game;lvl.value=S.lvl;iv.value=S.iv;weather.value=S.weather;
+game.value=S.game;lvl.value=S.lvl;iv.value=S.iv;weather.value=S.weather;oppPreset.value=S.oppPreset;dexOnly.checked=S.dexOnly;doubles.checked=S.doubles;
 game.onchange=()=>{S.game=+game.value;S.gen=GAMES[S.game][1];refresh()};
 lvl.onchange=()=>{S.lvl=Math.max(1,Math.min(100,+lvl.value||50));refresh()};
 iv.onchange=()=>{S.iv=Math.max(0,Math.min(31,+iv.value||0));refresh()};
 weather.onchange=()=>{S.weather=weather.value;refresh()};
-oppItem.onchange=()=>{S.oppItem=oppItem.value;refresh()};
-dexOnly.checked=S.dexOnly;dexOnly.onchange=()=>{S.dexOnly=dexOnly.checked;refresh()};
-oppPreset.value=S.oppPreset;oppPreset.onchange=()=>{S.oppPreset=oppPreset.value;refresh()};
+dexOnly.onchange=()=>{S.dexOnly=dexOnly.checked;refresh()};
+doubles.onchange=()=>{S.doubles=doubles.checked;refresh()};
+oppPreset.onchange=()=>{S.oppPreset=oppPreset.value;refresh()};
 
 wire(q1,r1,id=>{if(team.length<6){team.push({id,item:'',moves:[]});refresh()}});
-wire(q2,r2,show);
-renderTeam();
+wire(q2,r2,pickOpp);
+renderTeam();renderRecent();renderSlots();
 // PWA: https 또는 localhost에서만 동작 (파일로 직접 열면 그냥 무시됨)
 if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js');
 </script></body></html>
