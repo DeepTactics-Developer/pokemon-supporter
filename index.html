@@ -104,6 +104,16 @@ tr.bad td{background:var(--hl)}
 .threat{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--line)}
 .threat:last-child{border-bottom:0}
 .mini{display:inline-flex;align-items:center;font-size:12px}.mini img{width:28px;height:28px;margin:-4px -2px}
+/* 기술 이름 (정보 팝업) */
+.mvi{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
+.t .mvi{text-decoration-color:#fff9}
+#tip{position:fixed;z-index:20;max-width:300px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px #0004;font-size:14px;pointer-events:none}
+/* 다른 기술 보기 */
+.alts{margin-top:8px}
+.alts>summary{font-size:13px;font-weight:500;color:var(--mut)}
+.alt-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 16px;margin-top:6px}
+.alt-row{display:grid;grid-template-columns:18px 1fr auto;gap:6px;align-items:center;padding:4px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.alt-row .rank{font-size:12px;width:auto}.alt-row .ko{font-weight:600;white-space:nowrap}
 /* NPC 엔트리 줄 */
 .npc-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
 .npc-mon{padding:6px 4px 8px}.npc-mon img{width:56px;height:56px}.npc-mon .mut{font-size:11px;margin-top:2px}
@@ -142,6 +152,7 @@ tr.bad td{background:var(--hl)}
 <div id="recent" class="row" style="margin-top:8px"></div>
 <div id="out" style="margin-top:12px"></div>
 </main>
+<div id="tip" role="tooltip" hidden></div>
 
 <script>
 const API='https://beta.pokeapi.co/graphql/v1beta';
@@ -193,7 +204,7 @@ function m1(a,d){
 const eff=(a,defs)=>defs.reduce((p,d)=>p*m1(a,d),1);
 
 // 응답은 localStorage에 캐시 → 한 번 본 포켓몬은 오프라인에서도 동작. 쿼리 구조가 바뀌면 CV를 올려 옛 캐시 정리
-const CV='2';
+const CV='3';
 if(localStorage.cv!==CV){Object.keys(localStorage).filter(k=>k.startsWith('q:')).forEach(k=>localStorage.removeItem(k));localStorage.cv=CV}
 async function gql(q){
   const k='q:'+q;
@@ -269,9 +280,13 @@ function pastVal(m,f){
   return m.pokemon_v2_movechanges.filter(c=>c[f]!=null&&c.pokemon_v2_versiongroup.generation_id>S.gen)
     .sort((a,b)=>a.pokemon_v2_versiongroup.generation_id-b.pokemon_v2_versiongroup.generation_id)[0]?.[f];
 }
+// 기술 정보 팝업용: {게임:기술 id → 기술}
+const MOVEDB={};
 function toMove(m){
   const meta=m.pokemon_v2_movemeta[0],base=pastVal(m,'power')??m.power??0;
-  return {id:m.name,name:m.pokemon_v2_movenames[0]?.name||m.name,base,
+  return MOVEDB[S.game+':'+m.name]={id:m.name,name:m.pokemon_v2_movenames[0]?.name||m.name,base,
+    acc:pastVal(m,'accuracy')??m.accuracy,pp:pastVal(m,'pp')??m.pp,crit:meta?.crit_rate||0,drain:meta?.drain||0,heal:meta?.healing||0,
+    desc:(m.pokemon_v2_moveflavortexts[0]?.flavor_text||'').replace(/\s*\n\s*/g,' '),
     power:FIXED[m.name]||VARP[m.name]?1:base,
     type:pastVal(m,'pokemon_v2_type')?.name||m.pokemon_v2_type.name,cls:m.pokemon_v2_movedamageclass.name,
     prio:m.priority||0,target:m.pokemon_v2_movetarget?.name||'',chance:m.move_effect_chance||0,
@@ -281,10 +296,11 @@ function toMove(m){
 const moveLabel=m=>FIXED[m.id]?'고정 데미지':VARP[m.id]?'위력 가변':m.base?`위력 ${m.base}${m.hits?` ×${m.hits[0]===m.hits[1]?m.hits[0]:m.hits.join('~')}회`:''}${m.prio?` · 우선도 ${m.prio>0?'+':''}${m.prio}`:''}`:'변화';
 // 선택한 게임에서 배울 수 있는 모든 기술 (변화기 포함). 없으면 같은 세대 → 이전 세대 순으로
 const mcache={};
-const MOVE_FIELDS=`name power priority move_effect_chance
-    pokemon_v2_type{name} pokemon_v2_movedamageclass{name} pokemon_v2_movetarget{name} pokemon_v2_movemeta{min_hits max_hits}
-    pokemon_v2_moveattributemaps{pokemon_v2_moveattribute{name}} pokemon_v2_movechanges{power pokemon_v2_type{name} pokemon_v2_versiongroup{generation_id}}
-    pokemon_v2_movenames(where:{language_id:{_eq:3}}){name}`;
+const MOVE_FIELDS=`name power accuracy pp priority move_effect_chance
+    pokemon_v2_type{name} pokemon_v2_movedamageclass{name} pokemon_v2_movetarget{name} pokemon_v2_movemeta{min_hits max_hits crit_rate drain healing}
+    pokemon_v2_moveattributemaps{pokemon_v2_moveattribute{name}} pokemon_v2_movechanges{power accuracy pp pokemon_v2_type{name} pokemon_v2_versiongroup{generation_id}}
+    pokemon_v2_movenames(where:{language_id:{_eq:3}}){name}
+    pokemon_v2_moveflavortexts(where:{language_id:{_eq:3}},order_by:{version_group_id:desc},limit:1){flavor_text}`;
 // 이름(영문 id)으로 기술 불러오기 (NPC 기술용)
 async function movesByName(names){
   if(!names.length)return [];
@@ -469,7 +485,9 @@ function dmg(X,Y,m){
   if((defItem==='sash'||ya==='sturdy'&&S.gen>=5)&&!hits){if(ko===1)ko=2;if(koHi===1)koHi=2}
   return {...out,lo:Math.floor(lo*bm)/hp*100,hi:Math.floor(hi*bm)/hp*100,avg:avg*bm,ko,koHi};
 }
-const best=(X,Y,ms)=>ms.map(m=>dmg(X,Y,m)).sort((a,b)=>(b.avg??b.hi)-(a.avg??a.hi))[0];
+// 기술별 데미지를 기대 데미지 순으로 (1위 = 최강기, 나머지 = 차선책)
+const rank=(X,Y,ms)=>ms.map(m=>dmg(X,Y,m)).sort((a,b)=>(b.avg??b.hi)-(a.avg??a.hi));
+const best=(X,Y,ms)=>rank(X,Y,ms)[0];
 // 행동 순서: 우선도 → 스피드 (트릭룸이면 반대). 1=X 먼저, -1=Y 먼저, 0=동속
 function order(X,Y,rx,ry){
   const px=rx?.m.prio||0,py=ry?.m.prio||0,W=weatherOf(X,Y);
@@ -699,11 +717,50 @@ async function mineCtx(){
 function evalRec(mine,opps){
   return mine.map(x=>{
     const vs=opps.map(op=>{
-      const oms=usable(op.all,op.sun),me=best(x.F,op.F,x.ms),th=best(op.F,x.F,op.seenAtk.length?op.seenAtk:oms);
+      const oms=usable(op.all,op.sun),meAll=rank(x.F,op.F,x.ms),thAll=rank(op.F,x.F,op.seenAtk.length?op.seenAtk:oms),me=meAll[0],th=thAll[0];
       const worst=op.seenAtk.length&&op.seen.length<4?best(op.F,x.F,oms):null,risk=worst&&th&&worst.hi>th.hi?worst:null;
       const ord=order(x.F,op.F,me,th),a=me?me.ko:99,b=th?th.ko:99,win=a<b||a===b&&ord.v===1;
-      return {op,me,th,risk,ord,win,score:Math.min(b,99)-Math.min(a,99)+(ord.v===1?.5:0)}});
+      return {op,me,th,meAll:meAll.slice(0,5),thAll:thAll.slice(0,5),risk,ord,win,score:Math.min(b,99)-Math.min(a,99)+(ord.v===1?.5:0)}});
     return {...x,vs,score:vs.reduce((a,v)=>a+v.score,0)}}).sort((a,b)=>b.score-a.score);
+}
+
+// 기술 이름: 마우스를 올리거나 누르면 기술 정보 팝업
+const mvName=m=>`<span class="mvi" tabindex="0" role="button" data-mv="${m.id}">${m.name}</span>`;
+const FLAG_KO={contact:'접촉',punch:'펀치',bite:'물기',sound:'소리',pulse:'파동',ballistics:'탄',powder:'가루',dance:'춤',charge:'2턴 기술',recharge:'다음 턴 행동 불가'};
+function moveInfo(m){
+  const cls=S.gen<4&&m.base?(PHYS_TYPES.includes(m.type)?'물리':'특수'):{physical:'물리',special:'특수'}[m.cls]||'변화';
+  const facts=[FIXED[m.id]?'고정 데미지':VARP[m.id]?'위력 가변':m.base?`위력 ${m.base}`:'',m.hits?`${m.hits[0]===m.hits[1]?m.hits[0]:m.hits.join('~')}회 연속`:'',
+    `명중 ${m.acc??'—'}`,`PP ${m.pp}`,m.prio?`우선도 ${m.prio>0?'+':''}${m.prio}`:''].filter(Boolean);
+  const extra=[...m.flags.filter(f=>FLAG_KO[f]).map(f=>FLAG_KO[f]),m.crit>0?'급소율 높음':'',m.drain>0?`준 데미지의 ${m.drain}% 회복`:m.drain<0?`반동 ${-m.drain}%`:'',
+    m.heal>0?`HP ${m.heal}% 회복`:'',m.chance?`부가효과 ${m.chance}%`:'',SPREAD.includes(m.target)?'범위기 (더블)':''].filter(Boolean);
+  return `<div class="row" style="gap:6px"><b>${m.name}</b>${tag([m.type])}<span class="mut">${cls}</span></div>
+    <div class="num" style="font-size:13px;margin-top:4px">${facts.join(' · ')}</div>
+    ${extra.length?`<div class="mut">${extra.join(' · ')}</div>`:''}${m.desc?`<div style="margin-top:6px;font-size:13px">${m.desc}</div>`:''}`;
+}
+function showTip(el){
+  const m=MOVEDB[S.game+':'+el.dataset.mv];if(!m)return;
+  tip.innerHTML=moveInfo(m);tip.hidden=false;tip.dataset.for=el.dataset.mv;
+  const r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+  tip.style.left=Math.max(8,Math.min(innerWidth-w-8,r.left))+'px';
+  tip.style.top=(r.bottom+h+8<innerHeight?r.bottom+6:Math.max(8,r.top-h-6))+'px';
+}
+const hideTip=()=>{tip.hidden=true;tip.dataset.for=''};
+// 마우스: 올리면 표시 / 터치·클릭: 누르면 표시, 다른 곳을 누르거나 스크롤하면 닫힘 / 키보드: 포커스하면 표시
+document.addEventListener('pointerover',e=>{const el=e.target.closest?.('.mvi');if(el&&e.pointerType==='mouse')showTip(el)});
+document.addEventListener('pointerout',e=>{if(e.pointerType==='mouse'&&e.target.closest?.('.mvi'))hideTip()});
+document.addEventListener('click',e=>{const el=e.target.closest?.('.mvi');if(!el)return hideTip();e.preventDefault();showTip(el)});
+document.addEventListener('focusin',e=>{if(e.target.classList?.contains('mvi'))showTip(e.target)});
+document.addEventListener('focusout',e=>{if(e.target.classList?.contains('mvi'))hideTip()});
+addEventListener('scroll',hideTip,{passive:true});
+
+// 다른 기술 보기: 내 기술·상대 기술 순위 (1위가 막히면 쓸 차선책). 펼친 상태는 다시 그려도 유지
+const OPEN=new Set();
+function altBox(r,d){
+  const key=`${r.p.id}-${d.op.s.id}`,row=(x,i)=>`<div class="alt-row"><span class="rank">${i+1}</span><span>${mvName(x.m)}${x.hits?` <span class="mut">${x.hits}</span>`:''} ${tag([x.type])} ${fx(x.e)}</span><span class="ko"><span class="num">${pct(x)}</span> · ${koTxt(x)}</span></div>`;
+  if(d.meAll.length<2&&d.thAll.length<2)return '';
+  return `<details class="alts" data-key="${key}"${OPEN.has(key)?' open':''}><summary>다른 기술 보기</summary>
+    <div class="alt-cols"><div><div class="mut">내 기술 순위${r.guess?' (배울 수 있는 기술 중)':''}</div>${d.meAll.map(row).join('')||'<div class="mut">공격기 없음</div>'}</div>
+    <div><div class="mut">상대 기술 순위${d.op.seenAtk.length?(d.op.s.npc?' (NPC 기술)':' (기록한 기술)'):' (배울 수 있는 기술 중)'}</div>${d.thAll.map(row).join('')||'<div class="mut">공격기 없음</div>'}</div></div></details>`;
 }
 
 let lastKey='';
@@ -728,7 +785,7 @@ async function show(){
   const hpBar=r=>{const rmin=Math.max(0,100-(r?.hi||0)),rmax=Math.max(0,100-(r?.lo||0)),c=rmax>50?'var(--hp-g)':rmax>20?'var(--hp-y)':'var(--hp-r)';
     return `<div class="hp" role="img" aria-label="남는 HP ${rmin.toFixed(0)}~${rmax.toFixed(0)}%"><i class="left" data-w="${rmin}" style="width:${anim?100:rmin}%;background:${c}"></i><i class="range" data-w="${rmax-rmin}" style="width:${anim?0:rmax-rmin}%;background:${c}"></i></div>`};
   const hit=(who,r)=>`<div class="hit"><span class="who">${who}</span><span class="ko">${r?`<span class="num">${pct(r)}</span> · `:''}${koTxt(r)}</span>
-    <span class="mv">${r?`<b>${r.m.name}</b>${r.hits?` <span class="mut">${r.hits}</span>`:''} ${tag([r.type])} ${fx(r.e)}${r.spread?' <span class="mut">범위 ×0.75</span>':''}${r.m.prio>0?' <span class="mut">선공기</span>':''}`:'<span class="mut">공격기 없음</span>'}</span>
+    <span class="mv">${r?`<b>${mvName(r.m)}</b>${r.hits?` <span class="mut">${r.hits}</span>`:''} ${tag([r.type])} ${fx(r.e)}${r.spread?' <span class="mut">범위 ×0.75</span>':''}${r.m.prio>0?' <span class="mut">선공기</span>':''}`:'<span class="mut">공격기 없음</span>'}</span>
     ${hpBar(r)}</div>`;
   const ordTxt=d=>d.ord.why==='우선도'?(d.ord.v===1?'선공 · 우선도':'후공 · 상대 우선도'):`<span class="num">${d.ord.sx} vs ${d.ord.sy}</span> ${d.ord.v===1?'선공':d.ord.v===-1?'후공':'동속'}${d.ord.why?' · '+d.ord.why:''}`;
   // 배틀 상황에서 켜 둔 항목 수 (접힌 상태에서도 보이게)
@@ -744,7 +801,7 @@ async function show(){
     ${immune.length?`<div class="warn">${immune.join(', ')} — 특성에 따라 해당 타입 기술이 안 들어갈 수 있어요</div>`:''}
     ${!S.weather&&WX[OF.ab]?`<div class="warn">상대 특성으로 날씨가 ${WNAME[WX[OF.ab]]}로 바뀌어요 (계산에 반영됨)</div>`:''}
     ${S.gen>=6&&!B.terrain&&TX[OF.ab]?`<div class="warn">상대 특성으로 ${TNAME[TX[OF.ab]]}가 깔려요 (계산에 반영됨)</div>`:''}
-    ${N?`<div class="row"><span class="mut">NPC 기술</span> ${seen.map(m=>`<span class="t" style="background:${COL[m.type]}">${m.name}</span>`).join('')}</div>
+    ${N?`<div class="row"><span class="mut">NPC 기술</span> ${seen.map(m=>`<span class="t" style="background:${COL[m.type]}">${mvName(m)}</span>`).join('')}</div>
       ${N.it&&!ITEM_KEY[N.it]&&!ITEM_STATUS[N.it]?`<div class="mut">${NI[N.it]||N.it}은(는) 데미지 계산에 영향이 없어요.</div>`:''}
       ${N.alt?`<div class="warn">출처마다 달라요. Serebii에는 ${[N.alt.it!=null&&'물건 '+(NI[N.alt.it]||N.alt.it||'없음'),altMv.length&&'기술 '+altMv.map(m=>m.name).join('·')].filter(Boolean).join(', ')}로 나와요. 계산은 Bulbapedia 기준이에요.</div>`:''}`
     :`<div class="row"><span class="mut">상대가 쓴 기술</span>
@@ -760,8 +817,9 @@ async function show(){
         ${rkTxt(r.F.rank)?`<span class="mut">랭크 ${rkTxt(r.F.rank)}</span>`:''}${r.F.status?`<span class="mut">${STATUS[r.F.status]}</span>`:''}</div>
       ${r.vs.map(d=>`<div${S.doubles?' class="vs"':''}>${S.doubles?`<div class="row"><b>vs ${d.op.o.name}</b><span class="badge${d.win?' ok':''}">${d.win?'유리':'불리'}</span><span class="mut">${ordTxt(d)}</span></div>`:''}
         ${hit('내 공격',d.me)}
-        ${hit(d.op.seenAtk.length?'받는 피해 · 기록한 기술':'받는 피해 · 최강기 가정',d.th)}
-        ${d.risk?`<div class="mut" style="margin-top:4px">미확인 기술 최악의 경우: ${d.risk.m.name} ${tag([d.risk.type])} <span class="num">${pct(d.risk)}</span> · ${koTxt(d.risk)}</div>`:''}</div>`).join('')}
+        ${hit(d.op.s.npc?'받는 피해 · NPC 기술':d.op.seenAtk.length?'받는 피해 · 기록한 기술':'받는 피해 · 최강기 가정',d.th)}
+        ${d.risk?`<div class="mut" style="margin-top:4px">미확인 기술 최악의 경우: ${mvName(d.risk.m)} ${tag([d.risk.type])} <span class="num">${pct(d.risk)}</span> · ${koTxt(d.risk)}</div>`:''}
+        ${altBox(r,d)}</div>`).join('')}
       ${r.guess?'<div class="mut" style="margin-top:4px">기술을 설정하지 않아 배울 수 있는 기술 중 가장 센 걸로 계산했어요.</div>':''}</div>`).join('')||'<div class="empty-state">내 팀에 포켓몬을 추가하면 추천 순서가 나와요.</div>'}</div>
   <details class="card" ${active?'open':''}><summary>배틀 상황${active?` <span class="badge">${active}개 적용 중</span>`:' <span class="mut" style="font-weight:400">랭크·상태이상·벽·필드·급소</span>'}</summary>
     <div class="stack" style="margin-top:10px">
@@ -781,7 +839,8 @@ async function show(){
     <span class="mut">합계</span><span class="num">${Object.values(o.stats).reduce((a,b)=>a+b,0)}</span></div></div>
   </div>
   <div class="card"><h3>상대가 쓸 수 있는 주요 공격기 <span class="mut" style="font-weight:400">✔ 기록한 기술 먼저</span></h3>
-    ${[...seenAtk.map(m=>({m,seen:1})),...threats.filter(t=>!seenAtk.includes(t.m))].map(({m,seen})=>`<div class="threat">${seen?'<b class="win">✔</b>':''}${tag([m.type])} <b>${m.name}</b> <span class="mut">${moveLabel(m)} · ${S.gen<4?(PHYS_TYPES.includes(m.type)?'물리':'특수'):m.cls==='physical'?'물리':'특수'}</span> <span class="row" style="margin-left:auto;gap:4px">${mine.map(x=>`<span class="mini" title="${x.p.name}"><img src="${sprite(x.p.id)}" alt="${x.p.name}">${fx(eff(m.type,defTypes(x.F)))}</span>`).join('')}</span></div>`).join('')}</div>`;
+    ${[...seenAtk.map(m=>({m,seen:1})),...threats.filter(t=>!seenAtk.includes(t.m))].map(({m,seen})=>`<div class="threat">${seen?'<b class="win">✔</b>':''}${tag([m.type])} <b>${mvName(m)}</b> <span class="mut">${moveLabel(m)} · ${S.gen<4?(PHYS_TYPES.includes(m.type)?'물리':'특수'):m.cls==='physical'?'물리':'특수'}</span> <span class="row" style="margin-left:auto;gap:4px">${mine.map(x=>`<span class="mini" title="${x.p.name}"><img src="${sprite(x.p.id)}" alt="${x.p.name}">${fx(eff(m.type,defTypes(x.F)))}</span>`).join('')}</span></div>`).join('')}</div>`;
+  out.querySelectorAll('details.alts').forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.key):OPEN.delete(d.dataset.key));
   if(anim)requestAnimationFrame(()=>requestAnimationFrame(()=>out.querySelectorAll('.hp i').forEach(i=>i.style.width=i.dataset.w+'%')));
   const on=(sel,ev,fn)=>{const e=out.querySelector(sel);if(e)e[ev]=fn};
   on('#oppAbSel','onchange',e=>{O.ab=e.target.value;show()});
