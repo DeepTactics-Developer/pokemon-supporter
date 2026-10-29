@@ -317,11 +317,20 @@ const NAT=[['외로움','attack','defense'],['고집','attack','special-attack']
   ['겁쟁이','speed','attack'],['성급','speed','defense'],['명랑','speed','special-attack'],['천진난만','speed','special-defense']];
 // 실능력치. F={p, item, nature, ev:{능력치:값}} (ponytail: 1~2세대 노력치 체계·세대별 종족값 변화는 미반영, 데이터 없음)
 function stat(F,k){
+  if(F.real?.[k])return F.real[k]; // 게임 화면에서 옮겨 적은 실제 능력치가 있으면 그대로
   const L=F.lvl||S.lvl,b=Math.floor((2*F.p.stats[k]+(F.iv??S.iv)+Math.floor((F.ev?.[k]||0)/4))*L/100);
   if(k==='hp')return b+L+10;
   const n=NAT.find(x=>x[0]===F.nature);
   return Math.floor((b+5)*(n?.[1]===k?1.1:n?.[2]===k?.9:1));
 }
+// 실제 능력치 → 노력치 역산: 레벨·성격·개체값이 맞을 때 그 능력치가 나오는 노력치 범위 [최소, 최대]. 안 나오면 null
+function solveEv(F,k,real){
+  const ok=[];
+  for(let ev=0;ev<=252;ev+=4)if(stat({...F,real:null,ev:{[k]:ev}},k)===real)ok.push(ev);
+  return ok.length?[ok[0],Math.min(252,ok[ok.length-1]+3)]:null;
+}
+{const s={...S};S.iv=31;S.lvl=50;const F={p:{stats:{attack:100}},nature:'고집'};
+  console.assert(solveEv(F,'attack',167)?.[0]===252&&solveEv(F,'attack',132)?.[0]===0&&solveEv(F,'attack',500)===null,'ev solver broken');Object.assign(S,s)}
 // 상대 노력치 가정: 상대 실제 배분을 모르므로 프리셋으로 선택
 function oppCfg(o){
   const sa=o.stats['special-attack']>o.stats.attack?'special-attack':'attack',other=sa==='attack'?'special-attack':'attack';
@@ -537,6 +546,9 @@ async function renderEdit(){
       <label>성격 <select id="eNat"><option value="">무보정</option>${NAT.map(([n,u,d])=>`<option value="${n}"${n===t.nature?' selected':''}>${n} (${STAT[u]}↑ ${STAT[d]}↓)</option>`).join('')}</select></label></div>
     <div class="row"><span class="mut">노력치</span> ${Object.entries(STAT).map(([k,n])=>`<label>${n} <input class="eEv num" data-k="${k}" type="number" min="0" max="252" step="4" value="${t.ev?.[k]||0}" style="width:72px"></label>`).join('')}
       <span id="evSum" class="mut num"></span></div>
+    <div class="row"><span class="mut">실제 능력치</span> ${Object.entries(STAT).map(([k,n])=>`<label>${n} <input class="eReal num" data-k="${k}" type="number" min="1" max="999" value="${t.real?.[k]||''}" placeholder="${stat({p,lvl:t.lv,nature:t.nature,ev:t.ev},k)}" style="width:72px"></label>`).join('')}</div>
+    <div class="mut">게임의 포켓몬 상태 화면에 나오는 능력치를 옮겨 적으면 그 값 그대로 계산해요. 빈 칸은 위 노력치로 계산한 값(회색 숫자)을 써요.</div>
+    <div id="realNote"></div>
     <div class="row"><span class="mut">기술</span> ${[0,1,2,3].map(i=>`<input list="mlist" class="eMove" placeholder="기술 ${i+1}" value="${nm(t.moves[i])}" style="width:150px">`).join('')}</div>
     <datalist id="mlist">${ms.map(m=>`<option value="${m.name}">${KO[m.type]} ${moveLabel(m)}</option>`).join('')}</datalist>
     <div class="mut">기술을 비워두면 배울 수 있는 기술 중 가장 센 기술로 계산해요 (반동기·2턴 기술 제외). 변화기는 저장만 되고 데미지 계산에선 빠져요.</div>
@@ -549,6 +561,18 @@ async function renderEdit(){
   el.querySelector('#eNat').onchange=e=>{t.nature=e.target.value;refresh()};
   const s=Object.values(t.ev||{}).reduce((a,b)=>a+b,0);
   el.querySelector('#evSum').innerHTML=s>510?`<span class="warn">합계 ${s} / 510 초과</span>`:`합계 ${s} / 510`;
+  // 실제 능력치 → 노력치 추정 (개체값은 게임 설정 값으로 가정)
+  const reals=Object.entries(t.real||{}).filter(([,v])=>v);
+  if(reals.length){
+    const base={p,lvl:t.lv,nature:t.nature},est=reals.map(([k,v])=>[k,solveEv(base,k,v)]),bad=est.filter(([,r])=>!r);
+    el.querySelector('#realNote').innerHTML=`<div class="row"><span class="mut">추정 노력치</span> ${est.filter(([,r])=>r).map(([k,r])=>`${STAT[k]} <span class="num">${r[0]===r[1]?r[0]:r.join('~')}</span>`).join(' · ')}
+      ${est.some(([,r])=>r)?'<button id="evApply">노력치 칸에 넣기</button>':''}<button id="realClr">실제 능력치 지우기</button></div>
+      ${bad.length?`<div class="warn">${bad.map(([k])=>STAT[k]).join('·')}: 어떤 노력치로도 이 값이 안 나와요. 레벨·성격이 게임과 같은지, 게임 설정의 개체값(${S.iv})이 맞는지 확인해 주세요. 계산에는 입력한 값을 그대로 써요.</div>`:''}`;
+    const ap=el.querySelector('#evApply');if(ap)ap.onclick=()=>{t.ev={...t.ev,...Object.fromEntries(est.filter(([,r])=>r).map(([k,r])=>[k,r[0]]))};refresh()};
+    el.querySelector('#realClr').onclick=()=>{delete t.real;refresh()};
+  }
+  el.querySelectorAll('.eReal').forEach(inp=>inp.onchange=()=>{
+    const v=Math.round(+inp.value);t.real={...t.real,[inp.dataset.k]:v>0&&v<1000?v:undefined};refresh()});
   el.querySelectorAll('.eEv').forEach(inp=>inp.onchange=()=>{
     t.ev={...t.ev,[inp.dataset.k]:Math.max(0,Math.min(252,+inp.value||0))};refresh()});
   el.querySelectorAll('.eMove').forEach(inp=>inp.onchange=()=>{
@@ -668,7 +692,7 @@ const evAtk=o=>{const s={...S};S.oppPreset='atk';const c=oppCfg(o);Object.assign
 async function mineCtx(){
   return Promise.all(team.map(async(t,i)=>{const p=await load(t.id),all=await movesOf(t.id);
     const set=t.moves.map(x=>all.find(m=>m.id===x)).filter(Boolean),me=i===B.meIdx;
-    const F={p,item:t.item,nature:t.nature,ev:t.ev,lvl:t.lv,ab:pickAb(p,t.ability),tera:S.gen===9&&t.tera||'',rank:me?B.me.rank:{},status:me?B.me.status:'',side:B.meSide};
+    const F={p,item:t.item,nature:t.nature,ev:t.ev,lvl:t.lv,real:t.real,ab:pickAb(p,t.ability),tera:S.gen===9&&t.tera||'',rank:me?B.me.rank:{},status:me?B.me.status:'',side:B.meSide};
     return {p,t,F,ms:set.length?attacks(set):usable(all,(S.weather||WX[F.ab])==='sun'),guess:!set.length}}));
 }
 // 추천: 상대마다 (내가 몇 타에 잡나 vs 상대가 몇 타에 잡나) + 행동 순서. 더블이면 두 상대 점수 합
