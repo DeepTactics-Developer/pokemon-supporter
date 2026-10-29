@@ -7,66 +7,135 @@
 <meta name="theme-color" content="#e23535">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="포켓몬 서포터">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f5f5f7;--fg:#1d1d1f;--card:#fff;--mut:#6e6e73;--bd:#d8d8dc;--ac:#4a90d9;--hl:#fdecea}
-@media(prefers-color-scheme:dark){:root{--bg:#161618;--fg:#f2f2f4;--card:#222226;--mut:#9a9aa0;--bd:#38383d;--hl:#3a2222}}
-body{margin:0 auto;padding:16px;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;max-width:900px}
-h2{margin:20px 0 8px;font-size:16px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
-input,select{box-sizing:border-box;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--fg);font-size:15px}
-input[type=checkbox]{padding:0}
-.s input{width:100%}
-button,.btn{padding:4px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--fg);cursor:pointer;font-size:14px}
+/* 도감 레드 + 차가운 회색 종이 + 게임 HP 바 색 */
+:root{--red:#d7263d;--red-dk:#a51c2e;--ink:#1b1f2a;--paper:#eef1f4;--card:#fff;--line:#d9dee5;--mut:#667085;--track:#e3e8ee;--hl:#fdeced;
+  --hp-g:#3bb273;--hp-y:#f2b33d;--hp-r:#e4572e;--win:#2e9e5b;--lose:#d7263d;--lens:#5ec8f2;
+  --f-display:'Black Han Sans',system-ui,sans-serif;--f-body:'IBM Plex Sans KR',system-ui,sans-serif;--f-num:'IBM Plex Mono',ui-monospace,monospace}
+@media(prefers-color-scheme:dark){:root{--ink:#e8ecf2;--paper:#12151c;--card:#1c212b;--line:#2c3340;--mut:#97a1b3;--track:#2a303c;--hl:#3a1d24;--win:#4cc27e;--lose:#ff5d6c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 var(--f-body);-webkit-text-size-adjust:100%}
+main{max-width:920px;margin:0 auto;padding:0 16px 48px}
+/* 상단 도감 바: 왼쪽 위 렌즈 */
+.top{background:var(--red);color:#fff;border-bottom:4px solid var(--red-dk);margin-bottom:16px}
+.top-in{max-width:920px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.lens{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 12%,var(--lens) 13% 100%);border:3px solid #fff;box-shadow:0 0 0 2px var(--red-dk);flex:none}
+.top h1{font:400 22px/1 var(--f-display);margin:0;letter-spacing:.5px}
+.sum{margin-left:auto;font-size:12px;opacity:.9;text-align:right}
+h2{font:400 19px/1.2 var(--f-display);margin:24px 0 10px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+h2 small{font:400 13px var(--f-body);color:var(--mut)}
+h3{font-size:14px;margin:0 0 8px;font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+input,select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:15px;min-height:40px}
+input[type=checkbox]{min-height:0;width:18px;height:18px;accent-color:var(--red);vertical-align:-3px}
+button,.btn{padding:6px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer;font:inherit;font-size:14px;min-height:36px;display:inline-flex;align-items:center;gap:4px}
+button:hover,.btn:hover{border-color:var(--mut)}
+:focus-visible{outline:3px solid var(--lens);outline-offset:2px}
+label{font-size:13px;color:var(--mut);display:inline-flex;align-items:center;gap:6px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.t{display:inline-block;padding:1px 8px;border-radius:10px;color:#fff;font-size:12px;margin:1px}
-.x{font-weight:600}.x4{color:#c0392b}.x2{color:#d35400}.x05{color:#2e7d32}.x025{color:#1b5e20}.x0{color:var(--mut)}
-.res{position:absolute;z-index:5;background:var(--card);border:1px solid var(--bd);border-radius:8px;width:100%;max-height:260px;overflow:auto}
-.res div{padding:8px 10px;cursor:pointer}.res div:hover{background:var(--bg)}
-.s{position:relative}
-.bar{height:6px;background:var(--ac);border-radius:3px}
+.stack>*+*{margin-top:8px}
+.mut{color:var(--mut);font-size:13px}.warn{color:var(--lose);font-size:14px}
+.num{font-family:var(--f-num);font-weight:600;font-variant-numeric:tabular-nums}
 img{width:64px;height:64px;image-rendering:pixelated}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
-.warn{color:#c0392b}.mut{color:var(--mut);font-size:13px}
-.sel{outline:2px solid var(--ac)}
-.win{color:#2e7d32;font-weight:600}.lose{color:#c0392b;font-weight:600}
-label{font-size:13px;color:var(--mut)}
+/* 타입 배지 */
+.t{display:inline-block;padding:2px 9px;border-radius:999px;color:#fff;font-size:12px;font-weight:700;margin:1px;text-shadow:0 1px 0 #0003;box-shadow:inset 0 -2px 0 #0002}
+.x{font-family:var(--f-num);font-weight:600}.x4{color:#c4161c}.x2{color:#e4572e}.x05{color:#2e9e5b}.x025{color:#1f7a45}.x0{color:var(--mut)}
+@media(prefers-color-scheme:dark){.x4{color:#ff6b6b}.x2{color:#ff9a62}.x05{color:#5fd08f}.x025{color:#3fbf7a}}
+/* 설정 접기 */
+details>summary{cursor:pointer;list-style:none;font-weight:700}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:'▾';margin-left:6px;color:var(--mut);display:inline-block;transition:transform .2s}
+details:not([open])>summary::after{transform:rotate(-90deg)}
+.settings .row{margin-top:10px}
+/* 검색 */
+.s{position:relative}.s input{width:100%;padding-left:38px;min-height:46px;font-size:16px;border-radius:12px;
+  background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%23667085' stroke-width='2.2'%3E%3Ccircle cx='8' cy='8' r='6'/%3E%3Cpath d='m13 13 4 4'/%3E%3C/svg%3E") 12px 50%/18px no-repeat}
+.res{position:absolute;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:12px;width:100%;max-height:300px;overflow:auto;margin-top:4px;box-shadow:0 8px 24px #0002}
+.res div{padding:10px 14px;cursor:pointer}.res div:hover{background:var(--paper)}
+/* 팀 관리 메뉴 */
+.menu{position:relative}.menu>summary::after{content:none}
+.menu-pop{position:absolute;z-index:6;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 8px 24px #0003;display:grid;min-width:170px}
+.menu-pop>*{border:0;justify-content:flex-start;width:100%;color:var(--ink);font-size:14px}
+/* 팀 슬롯 */
+.slots6{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:10px}
+@media(max-width:480px){.slots6{grid-template-columns:repeat(3,1fr)}.mon img{width:52px;height:52px}.mon b{font-size:13px}.mon .t{font-size:11px;padding:1px 6px}}
+.mon{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 6px 10px;text-align:center;cursor:pointer;font:inherit;color:inherit;display:block;width:100%}
+.mon b{display:block;font-size:14px;margin-top:-4px}
+.mon.sel{border-color:var(--red);box-shadow:0 0 0 2px var(--red)}
+.mon.empty{border-style:dashed;color:var(--mut);min-height:110px;display:flex;align-items:center;justify-content:center;background:transparent}
+.mon .mut{font-size:11px;line-height:1.35;margin-top:4px}
+/* 상대 슬롯 탭 · 최근 */
+.tab{border-radius:999px}.tab.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip{padding:2px 12px 2px 2px;border-radius:999px;min-height:0}.chip img{width:32px;height:32px}
+/* 상대 헤더 */
+.foe{display:flex;gap:12px;align-items:center}
+.foe img{width:96px;height:96px;background:var(--paper);border-radius:50%;flex:none}
+.foe-name{font:400 24px/1.1 var(--f-display)}
+/* 추천: 왼쪽 띠 색 = 유리/불리, 데미지 = HP 바 */
+.rec{border:1px solid var(--line);border-left:6px solid var(--lose);border-radius:12px;padding:10px 12px;margin-top:10px}
+.rec.ok{border-left-color:var(--win)}
+.rec-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rec-h img{width:48px;height:48px;margin:-6px -4px -6px -8px}
+.rec-h b{font-size:16px}
+.badge{font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;background:var(--lose)}.badge.ok{background:var(--win)}
+.rank{font:400 13px var(--f-display);color:var(--mut);width:22px}
+.vs{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.hit{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;margin-top:8px}
+.hit .who{font-size:12px;color:var(--mut)}
+.hit .mv{grid-column:1/-1;font-size:14px}.hit .mv .mut{white-space:nowrap}
+.hit .ko{font-size:13px;font-weight:700;text-align:right;white-space:nowrap}
+.hp{grid-column:1/-1;height:10px;border-radius:5px;background:var(--track);overflow:hidden;display:flex}
+.hp i{display:block;height:100%;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.hp .left{border-radius:5px 0 0 5px}.hp .range{opacity:.35}
+@media(prefers-reduced-motion:reduce){.hp i,details>summary::after{transition:none}}
+/* 상성 표 · 종족값 */
+.eff{display:grid;grid-template-columns:44px 1fr;gap:6px 10px;align-items:center}
+.eff .x{text-align:right}
+.stats{display:grid;grid-template-columns:44px 36px 1fr 40px;gap:4px 8px;align-items:center;font-size:13px}
+.stats .bar{height:8px;border-radius:4px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 12px}
 .scroll{overflow-x:auto}
 table{border-collapse:collapse;font-size:13px}
-td,th{padding:2px 6px;text-align:center;border-bottom:1px solid var(--bd)}
+td,th{padding:3px 6px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
 tr.bad td{background:var(--hl)}
-.chip{display:inline-flex;align-items:center;gap:2px;padding:0 8px 0 0}
-.chip img{width:32px;height:32px}
-.tab{border-radius:6px 6px 0 0}.tab.on{background:var(--ac);color:#fff;border-color:var(--ac)}
-details summary{cursor:pointer;font-weight:600}
+.win{color:var(--win);font-weight:700}.lose{color:var(--lose);font-weight:700}
+.threat{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--line)}
+.threat:last-child{border-bottom:0}
+.mini{display:inline-flex;align-items:center;font-size:12px}.mini img{width:28px;height:28px;margin:-4px -2px}
+.empty-state{text-align:center;padding:28px 12px;color:var(--mut)}
 </style></head><body>
-<h1 style="font-size:20px">포켓몬 서포터</h1>
+<header class="top"><div class="top-in"><div class="lens" aria-hidden="true"></div><h1>포켓몬 서포터</h1><div class="sum" id="sum"></div></div></header>
+<main>
+<details class="card settings" id="setBox"><summary>게임 설정</summary>
+  <div class="row"><label>게임 <select id="game"></select></label>
+    <label><input type="checkbox" id="doubles"> 더블배틀</label>
+    <label><input type="checkbox" id="dexOnly"> 이 게임에 나오는 포켓몬만 검색</label></div>
+  <div class="row"><label>레벨 <input id="lvl" type="number" min="1" max="100" style="width:76px"></label>
+    <label>개체값 <input id="iv" type="number" min="0" max="31" style="width:66px"></label>
+    <label>날씨 <select id="weather"><option value="">없음/특성 따름</option><option value="sun">쾌청</option><option value="rain">비</option><option value="sand">모래바람</option><option value="snow">설경/싸라기눈</option></select></label></div>
+  <div class="row"><label>상대 노력치 가정 <select id="oppPreset"><option value="">없음 (0)</option><option value="atk">공격형 (공격/특공·스피드 252, 보정 성격)</option><option value="bulk">내구형 (HP 252, 방어·특방 128)</option></select></label></div>
+</details>
 
-<div class="card row">
-  <label>게임 <select id="game"></select></label>
-  <label><input type="checkbox" id="dexOnly"> 이 게임에 나오는 포켓몬만 검색</label>
-  <label><input type="checkbox" id="doubles"> 더블배틀</label>
-  <label>레벨 <input id="lvl" type="number" min="1" max="100" style="width:70px"></label>
-  <label>개체값 <input id="iv" type="number" min="0" max="31" style="width:60px"></label>
-  <label>날씨 <select id="weather"><option value="">없음/특성 따름</option><option value="sun">쾌청</option><option value="rain">비</option><option value="sand">모래바람</option><option value="snow">설경/싸라기눈</option></select></label>
-  <label>상대 노력치 가정 <select id="oppPreset"><option value="">없음 (0)</option><option value="atk">공격형 (공격/특공·스피드 252, 보정 성격)</option><option value="bulk">내구형 (HP 252, 방어·특방 128)</option></select></label>
+<h2>내 팀 <small>카드를 눌러 특성·도구·기술 설정</small></h2>
+<div class="row">
+  <select id="teamSel" aria-label="팀 선택"></select>
+  <details class="menu"><summary class="btn">팀 관리</summary><div class="menu-pop">
+    <button id="tNew">새 팀 만들기</button><button id="tRen">이름 바꾸기</button><button id="tDel">이 팀 삭제</button>
+    <button id="tExp">파일로 내보내기</button><label class="btn">파일에서 가져오기<input type="file" id="tImp" accept=".json,application/json" hidden></label></div></details>
 </div>
-
-<h2>내 엔트리 (최대 6마리) <span class="mut">— 카드를 눌러 도구·기술 설정</span></h2>
-<div class="row" style="margin-bottom:8px">
-  <label>팀 <select id="teamSel"></select></label>
-  <button id="tNew">새 팀</button><button id="tRen">이름 변경</button><button id="tDel">삭제</button>
-  <button id="tExp">내보내기</button><label class="btn">가져오기<input type="file" id="tImp" accept=".json,application/json" hidden></label>
-</div>
-<div class="s"><input id="q1" placeholder="내 포켓몬 검색 (한글/영문/도감번호) → 클릭해서 추가"><div class="res" id="r1" hidden></div></div>
-<div id="team" class="row" style="margin-top:8px"></div>
-<div id="edit"></div>
+<div class="s" style="margin-top:10px"><input id="q1" placeholder="내 포켓몬 추가 — 이름이나 도감번호"><div class="res" id="r1" hidden></div></div>
+<div id="team" class="slots6"></div>
+<div id="edit" style="margin-top:12px"></div>
 <div id="analysis"></div>
 
 <h2>상대 포켓몬</h2>
-<div id="slots" class="row" style="margin-bottom:6px"></div>
-<div class="s"><input id="q2" placeholder="상대 포켓몬 검색 (한글/영문/도감번호)"><div class="res" id="r2" hidden></div></div>
-<div id="recent" class="row" style="margin-top:6px"></div>
-<div id="out"></div>
+<div id="slots" class="row" style="margin-bottom:8px"></div>
+<div class="s"><input id="q2" placeholder="상대 포켓몬 검색 — 이름이나 도감번호"><div class="res" id="r2" hidden></div></div>
+<div id="recent" class="row" style="margin-top:8px"></div>
+<div id="out" style="margin-top:12px"></div>
+</main>
 
 <script>
 const API='https://beta.pokeapi.co/graphql/v1beta';
@@ -417,10 +486,15 @@ const abSelect=(sid,p,id)=>{const a=abilitiesOf(p);return a.length?`<label>특�
 function renderTeamBar(){
   teamSel.innerHTML=Object.keys(TEAMS).map(n=>`<option${n===teamName?' selected':''}>${n.replace(/</g,'&lt;')}</option>`).join('');
 }
+// 상단 바 요약: 지금 어떤 게임·규칙으로 계산 중인지
+const renderSum=()=>sum.innerHTML=`${GAMES[S.game][0]}<br>Lv.${S.lvl} · ${S.doubles?'더블':'싱글'}`;
 async function renderTeam(){
-  renderTeamBar();
+  renderTeamBar();renderSum();
   const ps=await Promise.all(team.map(t=>load(t.id))),dex=await dexOf();
-  document.getElementById('team').innerHTML=ps.map((p,i)=>`<div class="card${i===editing?' sel':''}" style="margin:0;text-align:center;cursor:pointer" onclick="editing=${i===editing?-1:i};renderTeam()"><img src="${sprite(p.id)}"><div>${p.name}</div><div>${tag(typesOf(p))}</div>${dex.size&&!dex.has(p.id)?'<div class="warn" style="font-size:12px">⚠ 이 게임에 없음</div>':''}<div class="mut">${[S.gen===9&&team[i].tera&&'테라 '+KO[team[i].tera],team[i].nature,team[i].item&&ITEMS[team[i].item]?.split(' (')[0],team[i].moves.length&&'기술 '+team[i].moves.length+'개'].filter(Boolean).join(' · ')}</div></div>`).join('')||'<span class="mut">비어 있음</span>';
+  const cards=ps.map((p,i)=>`<button class="mon${i===editing?' sel':''}" onclick="editing=${i===editing?-1:i};renderTeam()" aria-pressed="${i===editing}"><img src="${sprite(p.id)}" alt=""><b>${p.name}</b><div>${tag(typesOf(p))}</div>${dex.size&&!dex.has(p.id)?'<div class="warn" style="font-size:12px">이 게임에 없음</div>':''}<div class="mut">${[S.gen===9&&team[i].tera&&'테라 '+KO[team[i].tera],team[i].item&&ITEMS[team[i].item]?.split(' (')[0],team[i].nature,team[i].moves.length&&'기술 '+team[i].moves.length+'개'].filter(Boolean).join(' · ')}</div></button>`);
+  // 빈 칸을 누르면 검색창으로
+  if(ps.length<6)cards.push(`<button class="mon empty" onclick="q1.focus()">+ 추가<br>${ps.length}/6</button>`);
+  document.getElementById('team').innerHTML=cards.join('');
   renderEdit();renderAnalysis();
 }
 // 엔트리 편집: 도구 + 기술 4개 (비워두면 배울 수 있는 기술 중 최강기로 계산)
@@ -428,15 +502,15 @@ async function renderEdit(){
   const el=document.getElementById('edit');
   if(editing<0||!team[editing]){el.innerHTML='';return}
   const t=team[editing],p=await load(t.id),ms=await movesOf(t.id),nm=id=>ms.find(m=>m.id===id)?.name||'';
-  el.innerHTML=`<div class="card"><b>${p.name}</b> 설정
-    <div class="row" style="margin-top:6px">${abSelect('eAb',p,pickAb(p,t.ability))}${teraSelect('eTera',t.tera)}<label>도구 <select id="eItem">${itemOpts(t.item)}</select></label>
+  el.innerHTML=`<div class="card stack"><h3>${p.name} 설정</h3>
+    <div class="row">${abSelect('eAb',p,pickAb(p,t.ability))}${teraSelect('eTera',t.tera)}<label>도구 <select id="eItem">${itemOpts(t.item)}</select></label>
       <label>성격 <select id="eNat"><option value="">무보정</option>${NAT.map(([n,u,d])=>`<option value="${n}"${n===t.nature?' selected':''}>${n} (${STAT[u]}↑ ${STAT[d]}↓)</option>`).join('')}</select></label></div>
-    <div class="row" style="margin-top:6px">노력치 ${Object.entries(STAT).map(([k,n])=>`<label>${n} <input class="eEv" data-k="${k}" type="number" min="0" max="252" step="4" value="${t.ev?.[k]||0}" style="width:64px"></label>`).join('')}
-      <span id="evSum" class="mut"></span></div>
-    <div class="row" style="margin-top:6px">${[0,1,2,3].map(i=>`<input list="mlist" class="eMove" placeholder="기술 ${i+1}" value="${nm(t.moves[i])}" style="width:150px">`).join('')}</div>
+    <div class="row"><span class="mut">노력치</span> ${Object.entries(STAT).map(([k,n])=>`<label>${n} <input class="eEv num" data-k="${k}" type="number" min="0" max="252" step="4" value="${t.ev?.[k]||0}" style="width:72px"></label>`).join('')}
+      <span id="evSum" class="mut num"></span></div>
+    <div class="row"><span class="mut">기술</span> ${[0,1,2,3].map(i=>`<input list="mlist" class="eMove" placeholder="기술 ${i+1}" value="${nm(t.moves[i])}" style="width:150px">`).join('')}</div>
     <datalist id="mlist">${ms.map(m=>`<option value="${m.name}">${KO[m.type]} ${moveLabel(m)}</option>`).join('')}</datalist>
     <div class="mut">기술을 비워두면 배울 수 있는 기술 중 가장 센 기술로 계산해요 (반동기·2턴 기술 제외). 변화기는 저장만 되고 데미지 계산에선 빠져요.</div>
-    <div class="row" style="margin-top:6px"><button onclick="team.splice(editing,1);editing=-1;refresh()">엔트리에서 삭제</button></div></div>`;
+    <div class="row"><button onclick="team.splice(editing,1);editing=-1;refresh()">팀에서 빼기</button><button onclick="editing=-1;renderTeam()">닫기</button></div></div>`;
   el.querySelector('#eItem').onchange=e=>{t.item=e.target.value;refresh()};
   const ea=el.querySelector('#eAb');if(ea)ea.onchange=e=>{t.ability=e.target.value;refresh()};
   const et=el.querySelector('#eTera');if(et)et.onchange=e=>{t.tera=e.target.value;refresh()};
@@ -457,9 +531,9 @@ async function renderAnalysis(){
   const rows=types().map(a=>{const v=mem.map(x=>IMM[x.ab]===a||x.item==='balloon'&&a==='ground'?0:eff(a,typesOf(x.p)));
     const weak=v.filter(x=>x>1).length,res=v.filter(x=>x<1).length;return {a,v,weak,res,bad:weak>=3||weak>=2&&!res}});
   const gap=types().filter(d=>!mem.some(x=>x.atk.some(a=>eff(a,[d])>1)));
-  const open=localStorage.anaOpen!=='0';
-  el.innerHTML=`<details class="card" ${open?'open':''} ontoggle="localStorage.anaOpen=this.open?1:0"><summary>팀 분석</summary>
-    <div class="mut" style="margin:4px 0">빨간 줄: 약점이 3마리 이상이거나, 2마리 이상인데 반감 이하가 없는 타입</div>
+  const open=localStorage.anaOpen2==='1';
+  el.innerHTML=`<details class="card" ${open?'open':''} ontoggle="localStorage.anaOpen2=this.open?1:0"><summary>팀 약점 분석${rows.some(r=>r.bad)?` <span class="badge">겹치는 약점 ${rows.filter(r=>r.bad).length}</span>`:''}</summary>
+    <div class="mut" style="margin:6px 0">빨간 줄: 약점이 3마리 이상이거나, 2마리 이상인데 반감 이하가 없는 타입</div>
     <div class="scroll"><table><tr><th>공격 타입</th>${mem.map(x=>`<th><img src="${sprite(x.p.id)}" style="width:32px;height:32px" title="${x.p.name}"></th>`).join('')}<th>약점</th><th>반감↓</th></tr>
     ${rows.map(r=>`<tr class="${r.bad?'bad':''}"><td>${tag([r.a])}</td>${r.v.map(v=>`<td>${v===1?'<span class="mut">·</span>':fx(v)}</td>`).join('')}<td>${r.weak||''}</td><td>${r.res||''}</td></tr>`).join('')}</table></div>
     <div style="margin-top:8px"><b>효과가 굉장한 공격이 없는 타입</b> ${gap.length?tag(gap):'<span class="win">없음 — 모든 타입을 찌를 수 있어요</span>'}</div>
@@ -474,7 +548,7 @@ const slots=()=>S.doubles?OPP:OPP.slice(0,1);
 let RECENT=JSON.parse(localStorage.recent||'[]');
 async function renderRecent(){
   const ps=await Promise.all(RECENT.map(load));
-  document.getElementById('recent').innerHTML=ps.length?`<span class="mut">최근:</span>${ps.map(p=>`<button class="chip" onclick="pickOpp(${p.id})"><img src="${sprite(p.id)}">${p.name}</button>`).join('')}`:'';
+  document.getElementById('recent').innerHTML=ps.length?`<span class="mut">최근</span>${ps.map(p=>`<button class="chip" onclick="pickOpp(${p.id})"><img src="${sprite(p.id)}" alt="">${p.name}</button>`).join('')}`:'';
 }
 function pickOpp(id){
   if(OPP[act].id!==id)OPP[act]={...newSlot(),id};
@@ -484,7 +558,7 @@ function pickOpp(id){
 async function renderSlots(){
   if(!S.doubles){document.getElementById('slots').innerHTML='';act=0;return}
   const names=await Promise.all(OPP.map(o=>o.id?load(o.id).then(p=>p.name):'비어 있음'));
-  document.getElementById('slots').innerHTML=OPP.map((o,i)=>`<button class="tab${i===act?' on':''}" onclick="act=${i};show()">상대 ${'AB'[i]}: ${names[i]}</button>`).join('')+'<span class="mut">← 검색하면 선택한 칸에 들어가요</span>';
+  document.getElementById('slots').innerHTML=OPP.map((o,i)=>`<button class="tab${i===act?' on':''}" onclick="act=${i};show()">상대 ${'AB'[i]}: ${names[i]}</button>`).join('')+'<span class="mut">검색하면 선택한 칸에 들어가요</span>';
 }
 
 // 상대가 실제로 쓴 기술: {포켓몬 id: [기술 id]} — 다음에 같은 포켓몬을 만나도 남아 있음
@@ -494,10 +568,13 @@ const RK=['attack','defense','special-attack','special-defense','speed'];
 const rkTxt=r=>RK.filter(k=>r[k]).map(k=>`${STAT[k]}${r[k]>0?'+':''}${r[k]}`).join(' ');
 const STATUS={'':'없음',burn:'화상',para:'마비'};
 
+let lastKey='';
 async function show(){
   renderSlots();
   const out=document.getElementById('out'),O=OPP[act];
-  if(!O.id){out.innerHTML='';return}
+  // HP 바 애니메이션은 상대가 바뀔 때만 (설정을 바꿀 때마다 움직이면 산만함)
+  const key=slots().map(s=>s.id).join(','),anim=key!==lastKey&&!matchMedia('(prefers-reduced-motion: reduce)').matches;lastKey=key;
+  if(!O.id){out.innerHTML=`<div class="card empty-state">상대 포켓몬을 검색하면<br>내 팀에서 누구를 내보낼지 여기에 순서대로 나와요.</div>`;return}
   // 상대 슬롯별 전투 정보
   const opps=await Promise.all(slots().filter(s=>s.id).map(async s=>{
     const o=await load(s.id),all=await movesOf(s.id);s.ab=pickAb(o,s.ab);
@@ -524,42 +601,61 @@ async function show(){
   const stSel=(id,v)=>`<label>상태 <select id="${id}">${Object.entries(STATUS).map(([k,n])=>`<option value="${k}"${k===v?' selected':''}>${n}</option>`).join('')}</select></label>`;
   const sideChk=(side,k,n)=>`<label><input type="checkbox" class="sideChk" data-side="${side}" data-k="${k}"${B[side][k]?' checked':''}> ${n}</label>`;
   const W=S.weather||WX[OF.ab],T=S.gen>=6&&(B.terrain||TX[OF.ab]);
-  const atkLine=(arrow,who,r,note='')=>`<div>${arrow} ${who}: ${r?`${r.m.name}${r.hits?` (${r.hits})`:''} ${tag([r.type])} ${fx(r.e)} → ${pct(r)} (${koTxt(r)})${r.spread?' <span class="mut">범위기 ×0.75</span>':''}${r.m.prio>0?' <span class="mut">선공기</span>':''}`:'공격기 없음'}${note}</div>`;
-  const ordTxt=d=>d.ord.why==='우선도'?(d.ord.v===1?'선공 (우선도)':'후공 (상대 우선도)'):`스피드 ${d.ord.sx} vs ${d.ord.sy} ${d.ord.v===1?'(선공':d.ord.v===-1?'(후공':'(동속'}${d.ord.why?', '+d.ord.why:''})`;
+  // HP 바: 맞는 쪽 남은 HP. 진한 부분 = 최소로 남는 HP, 연한 부분 = 난수에 따라 더 남을 수 있는 범위
+  const hpBar=r=>{const rmin=Math.max(0,100-(r?.hi||0)),rmax=Math.max(0,100-(r?.lo||0)),c=rmax>50?'var(--hp-g)':rmax>20?'var(--hp-y)':'var(--hp-r)';
+    return `<div class="hp" role="img" aria-label="남는 HP ${rmin.toFixed(0)}~${rmax.toFixed(0)}%"><i class="left" data-w="${rmin}" style="width:${anim?100:rmin}%;background:${c}"></i><i class="range" data-w="${rmax-rmin}" style="width:${anim?0:rmax-rmin}%;background:${c}"></i></div>`};
+  const hit=(who,r)=>`<div class="hit"><span class="who">${who}</span><span class="ko">${r?`<span class="num">${pct(r)}</span> · `:''}${koTxt(r)}</span>
+    <span class="mv">${r?`<b>${r.m.name}</b>${r.hits?` <span class="mut">${r.hits}</span>`:''} ${tag([r.type])} ${fx(r.e)}${r.spread?' <span class="mut">범위 ×0.75</span>':''}${r.m.prio>0?' <span class="mut">선공기</span>':''}`:'<span class="mut">공격기 없음</span>'}</span>
+    ${hpBar(r)}</div>`;
+  const ordTxt=d=>d.ord.why==='우선도'?(d.ord.v===1?'선공 · 우선도':'후공 · 상대 우선도'):`<span class="num">${d.ord.sx} vs ${d.ord.sy}</span> ${d.ord.v===1?'선공':d.ord.v===-1?'후공':'동속'}${d.ord.why?' · '+d.ord.why:''}`;
+  // 배틀 상황에서 켜 둔 항목 수 (접힌 상태에서도 보이게)
+  const active=[...RK.filter(k=>O.rank[k]||B.me.rank[k]),O.status,B.me.status,...Object.values(B.meSide),...Object.values(B.oppSide),B.trickRoom,B.terrain,B.crit].filter(Boolean).length;
   out.innerHTML=`
-  <div class="card"><div class="row"><img src="${sprite(o.id)}"><div><b>${o.name}</b><div>${tag(ot)}${teraTag(OF)}</div></div></div>
-    <div class="row" style="margin-top:6px">${teraSelect('oppTeraSel',OF.tera)}${abSelect('oppAbSel',o,OF.ab)||'<span class="mut">특성 없음 (이 게임에는 특성이 없음)</span>'}
-      <label>도구 <select id="oppItemSel">${itemOpts(O.item)}</select></label>${abs.length>1?'<span class="mut">← 상대 특성을 모르면 가능성 높은 쪽으로 골라보세요</span>':''}</div>
-    ${immune.length?`<div class="warn">⚠ ${immune.join(', ')} — 특성에 따라 해당 타입 기술이 안 들어갈 수 있음</div>`:''}
-    <div class="row" style="margin-top:6px"><b>상대가 쓴 기술</b>
-      ${seen.map(m=>`<button class="seenRm" data-id="${m.id}" title="삭제">${m.name} ✕</button>`).join('')}
-      ${seen.length<4?`<input id="seenIn" list="olist" placeholder="기술 이름 입력 (${seen.length}/4)" style="width:170px"><datalist id="olist">${allO.filter(m=>!seen.includes(m)).map(m=>`<option value="${m.name}">${KO[m.type]} ${moveLabel(m)}</option>`).join('')}</datalist>`:''}
-      ${seen.length?'<button id="seenClr">기록 초기화</button>':''}</div>
-    ${!S.weather&&WX[OF.ab]?`<div class="warn">☀ 상대 특성으로 날씨가 바뀌어요: ${WNAME[WX[OF.ab]]} (데미지 계산에 반영)</div>`:''}
-    ${S.gen>=6&&!B.terrain&&TX[OF.ab]?`<div class="warn">상대 특성으로 필드가 깔려요: ${TNAME[TX[OF.ab]]} (데미지 계산에 반영)</div>`:''}</div>
-  <div class="card"><b>배틀 상황</b> <span class="mut">(저장 안 됨, 상대를 바꾸면 그 상대의 랭크·상태는 초기화)</span>
-    <div class="row" style="margin-top:6px"><b>상대${S.doubles?' '+'AB'[act]:''}</b> ${rkSel('opp',O.rank)} ${stSel('oppSt',O.status)}</div>
-    <div class="row" style="margin-top:2px"><span class="mut">상대 쪽 필드</span> ${sideChk('oppSide','tail','순풍')} ${sideChk('oppSide','reflect','리플렉터')} ${sideChk('oppSide','light','빛의장막')}</div>
-    ${mine.length?`<div class="row" style="margin-top:8px"><b>나</b> <select id="meIdx">${mine.map((x,i)=>`<option value="${i}"${i===B.meIdx?' selected':''}>${x.p.name}</option>`).join('')}</select> ${rkSel('me',B.me.rank)} ${stSel('meSt',B.me.status)}</div>
-    <div class="row" style="margin-top:2px"><span class="mut">내 쪽 필드</span> ${sideChk('meSide','tail','순풍')} ${sideChk('meSide','reflect','리플렉터')} ${sideChk('meSide','light','빛의장막')}</div>`:''}
-    <div class="row" style="margin-top:8px"><label><input type="checkbox" id="tr"${B.trickRoom?' checked':''}> 트릭룸</label>
+  <div class="card stack">
+    <div class="foe"><img src="${sprite(o.id)}" alt=""><div><div class="foe-name">${o.name}</div><div>${tag(ot)}${teraTag(OF)}</div>
+      ${W||T?`<div class="mut">${[W&&'날씨 '+WNAME[W],T&&TNAME[T]].filter(Boolean).join(' · ')}</div>`:''}</div></div>
+    <div class="row">${teraSelect('oppTeraSel',OF.tera)}${abSelect('oppAbSel',o,OF.ab)||'<span class="mut">이 게임에는 특성이 없어요</span>'}
+      <label>도구 <select id="oppItemSel">${itemOpts(O.item)}</select></label></div>
+    ${abs.length>1?'<div class="mut">상대 특성을 모르면 가능성 높은 쪽으로 골라보세요.</div>':''}
+    ${immune.length?`<div class="warn">${immune.join(', ')} — 특성에 따라 해당 타입 기술이 안 들어갈 수 있어요</div>`:''}
+    ${!S.weather&&WX[OF.ab]?`<div class="warn">상대 특성으로 날씨가 ${WNAME[WX[OF.ab]]}로 바뀌어요 (계산에 반영됨)</div>`:''}
+    ${S.gen>=6&&!B.terrain&&TX[OF.ab]?`<div class="warn">상대 특성으로 ${TNAME[TX[OF.ab]]}가 깔려요 (계산에 반영됨)</div>`:''}
+    <div class="row"><span class="mut">상대가 쓴 기술</span>
+      ${seen.map(m=>`<button class="seenRm" data-id="${m.id}" aria-label="${m.name} 기록 지우기">${m.name} ✕</button>`).join('')}
+      ${seen.length<4?`<input id="seenIn" list="olist" placeholder="기술 이름 (${seen.length}/4)" style="width:160px"><datalist id="olist">${allO.filter(m=>!seen.includes(m)).map(m=>`<option value="${m.name}">${KO[m.type]} ${moveLabel(m)}</option>`).join('')}</datalist>`:''}
+      ${seen.length?'<button id="seenClr">기록 지우기</button>':''}</div>
+  </div>
+  <div class="card"><h3>누구를 내보낼까${S.doubles&&rec.length>1?` <span class="badge ok">추천 선발 ${rec.slice(0,2).map(r=>r.p.name).join(' + ')}</span>`:''}</h3>
+    ${rec.length?'<div class="mut">위에서부터 유리한 순서. 막대는 맞는 쪽의 남는 HP예요.</div>':''}
+    ${rec.map((r,i)=>`<div class="rec${r.vs.every(d=>d.win)?' ok':''}">
+      <div class="rec-h"><span class="rank">${i+1}</span><img src="${sprite(r.p.id)}" alt=""><b>${r.p.name}</b>${tag(typesOf(r.p))}${teraTag(r.F)}
+        ${!S.doubles?`<span class="badge${r.vs[0].win?' ok':''}">${r.vs[0].win?'유리':'불리'}</span><span class="mut">${ordTxt(r.vs[0])}</span>`:''}
+        ${rkTxt(r.F.rank)?`<span class="mut">랭크 ${rkTxt(r.F.rank)}</span>`:''}${r.F.status?`<span class="mut">${STATUS[r.F.status]}</span>`:''}</div>
+      ${r.vs.map(d=>`<div${S.doubles?' class="vs"':''}>${S.doubles?`<div class="row"><b>vs ${d.op.o.name}</b><span class="badge${d.win?' ok':''}">${d.win?'유리':'불리'}</span><span class="mut">${ordTxt(d)}</span></div>`:''}
+        ${hit('내 공격',d.me)}
+        ${hit(d.op.seenAtk.length?'받는 피해 · 기록한 기술':'받는 피해 · 최강기 가정',d.th)}
+        ${d.risk?`<div class="mut" style="margin-top:4px">미확인 기술 최악의 경우: ${d.risk.m.name} ${tag([d.risk.type])} <span class="num">${pct(d.risk)}</span> · ${koTxt(d.risk)}</div>`:''}</div>`).join('')}
+      ${r.guess?'<div class="mut" style="margin-top:4px">기술을 설정하지 않아 배울 수 있는 기술 중 가장 센 걸로 계산했어요.</div>':''}</div>`).join('')||'<div class="empty-state">내 팀에 포켓몬을 추가하면 추천 순서가 나와요.</div>'}</div>
+  <details class="card" ${active?'open':''}><summary>배틀 상황${active?` <span class="badge">${active}개 적용 중</span>`:' <span class="mut" style="font-weight:400">랭크·상태이상·벽·필드·급소</span>'}</summary>
+    <div class="stack" style="margin-top:10px">
+    <div class="row"><b>상대${S.doubles?' '+'AB'[act]:''}</b> ${rkSel('opp',O.rank)} ${stSel('oppSt',O.status)}</div>
+    <div class="row"><span class="mut">상대 쪽</span> ${sideChk('oppSide','tail','순풍')} ${sideChk('oppSide','reflect','리플렉터')} ${sideChk('oppSide','light','빛의장막')}</div>
+    ${mine.length?`<div class="row"><b>나</b> <select id="meIdx" aria-label="랭크를 적용할 내 포켓몬">${mine.map((x,i)=>`<option value="${i}"${i===B.meIdx?' selected':''}>${x.p.name}</option>`).join('')}</select> ${rkSel('me',B.me.rank)} ${stSel('meSt',B.me.status)}</div>
+    <div class="row"><span class="mut">내 쪽</span> ${sideChk('meSide','tail','순풍')} ${sideChk('meSide','reflect','리플렉터')} ${sideChk('meSide','light','빛의장막')}</div>`:''}
+    <div class="row"><label><input type="checkbox" id="tr"${B.trickRoom?' checked':''}> 트릭룸</label>
       ${S.gen>=6?`<label>필드 <select id="terrain"><option value="">없음/특성 따름</option>${Object.entries(TNAME).map(([k,n])=>`<option value="${k}"${k===B.terrain?' selected':''}>${n}</option>`).join('')}</select></label>`:''}
-      <label><input type="checkbox" id="crit"${B.crit?' checked':''}> 급소 (×${S.gen>=6?1.5:2}, 불리한 랭크·벽 무시)</label><button id="rkReset">전부 초기화</button></div>
-    ${OF.ab==='intimidate'||mine.some(x=>x.F.ab==='intimidate')?'<div class="mut">위협은 공격 -1로 자동 반영돼요</div>':''}</div>
-  <div class="card"><b>방어 상성</b> (상대가 받는 데미지${OF.tera?', 테라스탈 후':''})
-    <div>×4: ${grp(4)}</div><div>×2: ${grp(2)}</div><div>×½: ${grp(.5)}</div><div>×¼: ${grp(.25)}</div><div>×0: ${grp(0)}</div></div>
-  <div class="card"><b>종족값</b> <span class="mut">(회색: Lv.${S.lvl} 실능력치, 노력치 가정 반영${OF.nature?' · '+OF.nature:''})</span><div class="grid">${Object.entries(STAT).map(([k,n])=>`<div>${n} ${o.stats[k]} <span class="mut">${stat(OF,k)}</span><div class="bar" style="width:${Math.min(o.stats[k]/2,100)}%"></div></div>`).join('')}</div></div>
-  <div class="card"><b>추천 출전 순서</b>${S.doubles&&rec.length>1?` <span class="win">추천 선발: ${rec.slice(0,2).map(r=>r.p.name).join(' + ')}</span>`:''}
-    ${W?`<span class="mut"> · 날씨 ${WNAME[W]}</span>`:''}${T?`<span class="mut"> · ${TNAME[T]}</span>`:''}
-    ${rec.map((r,i)=>`<div style="border-top:1px solid var(--bd);padding:6px 0">
-      <div class="row"><span>${i+1}.</span><img style="width:40px;height:40px" src="${sprite(r.p.id)}"><b>${r.p.name}</b>${tag(typesOf(r.p))}${teraTag(r.F)}${rkTxt(r.F.rank)?`<span class="mut">[랭크 ${rkTxt(r.F.rank)}]</span>`:''}${r.F.status?`<span class="mut">[${STATUS[r.F.status]}]</span>`:''}${r.guess?' <span class="mut">(기술 미설정 → 최강기 가정)</span>':''}</div>
-      ${r.vs.map(d=>`<div style="margin-left:${S.doubles?12:0}px">${S.doubles?`<b>vs ${d.op.o.name}</b> `:''}<span class="${d.win?'win':'lose'}">${d.win?'유리':'불리'}</span> <span class="mut">${ordTxt(d)}</span>
-        ${atkLine('▶','내 공격',d.me)}
-        ${atkLine('◀',d.op.seenAtk.length?'상대 (기록된 기술)':'상대 최강기',d.th)}
-        ${d.risk?`<div class="mut">⚠ 미확인 기술 최악의 경우: ${d.risk.m.name} ${tag([d.risk.type])} → ${pct(d.risk)} (${koTxt(d.risk)})</div>`:''}</div>`).join('')}</div>`).join('')||'<span class="mut">엔트리를 먼저 추가하세요</span>'}</div>
-  <div class="card"><b>상대가 배울 수 있는 주요 공격기</b> <span class="mut">(✔ 기록된 기술 먼저, 나머지는 타입별 최고 위력)</span>
-    ${[...seenAtk.map(m=>({m,seen:1})),...threats.filter(t=>!seenAtk.includes(t.m))].map(({m,seen})=>`<div class="row">${seen?'<b>✔</b>':''}${tag([m.type])} ${m.name} <span class="mut">${moveLabel(m)} · ${S.gen<4?(PHYS_TYPES.includes(m.type)?'물리':'특수'):m.cls==='physical'?'물리':'특수'}</span> ${mine.map(x=>`<span title="${x.p.name}">${fx(eff(m.type,defTypes(x.F)))}</span>`).join(' ')}</div>`).join('')}
-    ${mine.length?`<div class="mut">배율 순서: ${mine.map(x=>x.p.name).join(', ')}</div>`:''}</div>`;
+      <label><input type="checkbox" id="crit"${B.crit?' checked':''}> 급소 (×${S.gen>=6?1.5:2})</label><button id="rkReset">전부 초기화</button></div>
+    <div class="mut">저장되지 않아요. 상대를 바꾸면 그 상대의 랭크·상태는 초기화돼요.${OF.ab==='intimidate'||mine.some(x=>x.F.ab==='intimidate')?' 위협은 공격 -1로 자동 반영돼요.':''}</div></div></details>
+  <div class="two">
+  <div class="card"><h3>방어 상성 <span class="mut" style="font-weight:400">상대가 받는 배율${OF.tera?' · 테라스탈 후':''}</span></h3>
+    <div class="eff">${[4,2,.5,.25,0].map(v=>`${fx(v)}<div>${grp(v)}</div>`).join('')}</div></div>
+  <div class="card"><h3>종족값 <span class="mut" style="font-weight:400">오른쪽: Lv.${S.lvl} 실능력치${OF.nature?' · '+OF.nature:''}</span></h3>
+    <div class="stats">${Object.entries(STAT).map(([k,n])=>`<span class="mut">${n}</span><span class="num">${o.stats[k]}</span><div class="bar" style="width:${Math.min(o.stats[k]/1.8,100)}%;background:hsl(${Math.min(o.stats[k],150)/150*130} 60% 48%)"></div><span class="num mut" style="text-align:right">${stat(OF,k)}</span>`).join('')}
+    <span class="mut">합계</span><span class="num">${Object.values(o.stats).reduce((a,b)=>a+b,0)}</span></div></div>
+  </div>
+  <div class="card"><h3>상대가 쓸 수 있는 주요 공격기 <span class="mut" style="font-weight:400">✔ 기록한 기술 먼저</span></h3>
+    ${[...seenAtk.map(m=>({m,seen:1})),...threats.filter(t=>!seenAtk.includes(t.m))].map(({m,seen})=>`<div class="threat">${seen?'<b class="win">✔</b>':''}${tag([m.type])} <b>${m.name}</b> <span class="mut">${moveLabel(m)} · ${S.gen<4?(PHYS_TYPES.includes(m.type)?'물리':'특수'):m.cls==='physical'?'물리':'특수'}</span> <span class="row" style="margin-left:auto;gap:4px">${mine.map(x=>`<span class="mini" title="${x.p.name}"><img src="${sprite(x.p.id)}" alt="${x.p.name}">${fx(eff(m.type,defTypes(x.F)))}</span>`).join('')}</span></div>`).join('')}</div>`;
+  if(anim)requestAnimationFrame(()=>requestAnimationFrame(()=>out.querySelectorAll('.hp i').forEach(i=>i.style.width=i.dataset.w+'%')));
   const on=(sel,ev,fn)=>{const e=out.querySelector(sel);if(e)e[ev]=fn};
   on('#oppAbSel','onchange',e=>{O.ab=e.target.value;show()});
   on('#oppTeraSel','onchange',e=>{O.tera=e.target.value;show()});
@@ -579,7 +675,8 @@ async function show(){
   on('#seenClr','onclick',()=>setSeen([]));
 }
 
-// 팀 관리
+// 팀 관리 (메뉴에서 하나 고르면 메뉴는 닫음)
+document.querySelector('.menu-pop').addEventListener('click',e=>{if(e.target.tagName==='BUTTON')e.currentTarget.parentElement.open=false});
 const uniq=n=>{let k=n,i=2;while(TEAMS[k])k=`${n} (${i++})`;return k};
 teamSel.onchange=()=>{save();teamName=teamSel.value;team=TEAMS[teamName];editing=-1;B.meIdx=0;refresh()};
 tNew.onclick=()=>{const n=prompt('새 팀 이름');if(!n)return;save();teamName=uniq(n.trim());team=TEAMS[teamName]=[];editing=-1;refresh()};
@@ -609,7 +706,7 @@ oppPreset.onchange=()=>{S.oppPreset=oppPreset.value;refresh()};
 
 wire(q1,r1,id=>{if(team.length<6){team.push({id,item:'',moves:[]});refresh()}});
 wire(q2,r2,pickOpp);
-renderTeam();renderRecent();renderSlots();
+renderTeam();renderRecent();renderSlots();show();
 // PWA: https 또는 localhost에서만 동작 (파일로 직접 열면 그냥 무시됨)
 if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js');
 </script></body></html>
