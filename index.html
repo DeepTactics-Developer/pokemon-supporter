@@ -114,6 +114,13 @@ tr.bad td{background:var(--hl)}
 .alt-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 16px;margin-top:6px}
 .alt-row{display:grid;grid-template-columns:18px 1fr auto;gap:6px;align-items:center;padding:4px 0;border-bottom:1px dashed var(--line);font-size:13px}
 .alt-row .rank{font-size:12px;width:auto}.alt-row .ko{font-weight:600;white-space:nowrap}
+/* 공략 플랜 */
+.plan{border-top:1px solid var(--line);padding-top:10px}
+.plan>summary{font-size:15px}
+.plan-sum{margin:10px 0 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.plan-step{padding:8px 0;border-bottom:1px dashed var(--line)}
+.plan-step img{width:36px;height:36px;margin:-6px -2px}
+.plan-step .rank{width:20px}
 /* NPC 엔트리 줄 */
 .npc-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
 .npc-mon{padding:6px 4px 8px}.npc-mon img{width:56px;height:56px}.npc-mon .mut{font-size:11px;margin-top:2px}
@@ -677,7 +684,8 @@ async function renderNpc(){
       return `<button class="mon npc-mon${on?' sel':''}" onclick="pickNpc('${npc.id}',${sel.b},${k})"><img src="${sprite(ids[k])}" alt=""><b>${ps[k].name} <span class="mut num" style="font-weight:500">Lv.${m.lv}</span></b>
         <div>${tag(typesOf(ps[k]))}</div>${d.items[m.it]?`<div class="mut">${d.items[m.it]}</div>`:''}
         ${t?`<div class="npc-top ${t.vs[0].win?'win':'lose'}">${t.vs[0].win?'▶':'△'} ${t.p.name}</div>`:''}</button>`}).join('')}</div>
-      <div class="mut">카드 아래: 내 팀에서 가장 유리한 포켓몬 (▶ 유리, △ 그나마 나음). 카드를 누르면 자세히 볼 수 있어요.${bt.trained?' 이 엔트리는 노력치를 투자했지만 배분이 공개돼 있지 않아 공격형으로 가정해요.':''}</div>`;
+      <div class="mut">카드 아래: 내 팀에서 가장 유리한 포켓몬 (▶ 유리, △ 그나마 나음). 카드를 누르면 자세히 볼 수 있어요.${bt.trained?' 이 엔트리는 노력치를 투자했지만 배분이 공개돼 있지 않아 공격형으로 가정해요.':''}</div>
+      <details class="plan" id="planBox"${localStorage.planOpen==='1'?' open':''}><summary>공략 플랜 — 엔트리 전체를 누구 순서로 상대할지</summary><div id="planBody"></div></details>`;
   }
   el.innerHTML=`<div class="card stack"><h3>스토리 NPC 불러오기</h3>
     <div class="row"><select id="npcSel" aria-label="NPC"><option value="">NPC 고르기</option>${roles.map(r=>`<optgroup label="${r}">${d.npcs.filter(n=>n.role===r).map(n=>`<option value="${n.id}"${n.id===sel.id?' selected':''}>${n.name}${n.note?' — '+n.note:''}</option>`).join('')}</optgroup>`).join('')}</select>
@@ -688,6 +696,30 @@ async function renderNpc(){
   npcSel.onchange=()=>npcSel.value?pickNpc(npcSel.value,0):(NPCSEL={},localStorage.npcSel='{}',renderNpc());
   const nb=document.getElementById('npcBattle');if(nb)nb.onchange=()=>pickNpc(sel.id,+nb.value);
   const nc=document.getElementById('npcClear');if(nc)nc.onclick=()=>{NPCSEL={};localStorage.npcSel='{}';renderNpc()};
+  const pb=document.getElementById('planBox');
+  if(pb){pb.ontoggle=()=>{localStorage.planOpen=pb.open?1:0;if(pb.open)fillPlan(npc,bt)};if(pb.open)fillPlan(npc,bt)}
+}
+// 공략 플랜 그리기 (펼쳤을 때만 계산)
+async function fillPlan(npc,bt){
+  const el=document.getElementById('planBody');
+  if(!team.length){el.innerHTML='<div class="mut">내 팀에 포켓몬을 추가하면 공략 순서를 짜드려요.</div>';return}
+  el.innerHTML='<div class="mut">계산 중…</div>';
+  const plan=await npcPlan(npc,bt),pct=v=>`${Math.max(0,v).toFixed(0)}%`;
+  const hpBar=(a,b)=>{const c=b>50?'var(--hp-g)':b>20?'var(--hp-y)':'var(--hp-r)';
+    return `<div class="hp" style="height:8px"><i class="left" style="width:${Math.max(0,b)}%;background:${c}"></i><i class="range" style="width:${Math.max(0,a-b)}%;background:${c}"></i></div>`};
+  const lost=plan.steps.find(s=>s.lost||s.stuck);
+  el.innerHTML=`<div class="plan-sum">${plan.win
+      ?`<span class="badge ok">예상 승리</span> ${plan.fainted.length?`쓰러지는 내 포켓몬: <b>${plan.fainted.join(', ')}</b>`:'<b>한 마리도 안 쓰러지고</b> 이길 수 있어요'}`
+      :`<span class="badge">예상 패배</span> <b>${lost.op.o.name}</b>${lost.stuck?'에게 데미지를 줄 수 있는 포켓몬이 없어요':'에서 내 팀이 다 쓰러져요'}`}</div>
+    ${plan.steps.filter(s=>s.x).map((s,i)=>`<div class="plan-step">
+      <div class="row" style="gap:6px"><span class="rank">${i+1}</span><img src="${sprite(s.op.o.id)}" alt=""><span>${s.op.o.name} <span class="mut num">Lv.${s.op.F.lvl}</span>${s.oppStart<100?` <span class="mut">(HP ${pct(s.oppStart)} 남은 상태)</span>`:''}</span>
+        <span class="mut">←</span><img src="${sprite(s.x.p.id)}" alt=""><b>${s.x.p.name}</b>
+        <span class="badge${s.r.win?' ok':''}">${s.r.win?`${s.r.t}턴에 쓰러뜨림`:'쓰러짐'}</span></div>
+      <div class="mut" style="margin:2px 0 4px 26px">${s.r.me?`${mvName(s.r.me.m)} (${pct(s.r.me.lo)}~${pct(s.r.me.hi)})`:'공격기 없음'} · ${s.r.first?'선공':'후공'} · 받는 기술 ${s.r.th?mvName(s.r.th.m):'없음'}
+        · 내 HP <span class="num">${pct(s.startHp)} → ${pct(s.r.h1)}</span>${!s.r.win?` · 상대 HP ${pct(s.r.h2)} 남김`:''}${s.alt?` · 대안: ${s.alt.x.p.name} (HP ${pct(s.alt.r.h1)} 남음)`:''}</div>
+      <div style="margin-left:26px">${hpBar(s.startHp,s.r.h1)}</div></div>`).join('')}
+    <div class="mut" style="margin-top:8px">가정: 상대는 엔트리 순서대로 나오고, 양쪽 모두 매 턴 가장 센 기술을 써요. 평균 데미지로 계산하고, 상대를 쓰러뜨린 뒤 교체는 무료(교체 배틀 스타일)예요.
+      회복약·회복 열매, 변화기, 부가효과(풀죽음·마비 등), 급소는 반영하지 않아서 실제와 다를 수 있어요.${S.doubles?' 더블배틀이어도 싱글배틀 기준으로 짰어요.':''}</div>`;
 }
 
 // 상대가 실제로 쓴 기술: {포켓몬 id: [기술 id]} — 다음에 같은 포켓몬을 만나도 남아 있음
@@ -722,6 +754,49 @@ function evalRec(mine,opps){
       const ord=order(x.F,op.F,me,th),a=me?me.ko:99,b=th?th.ko:99,win=a<b||a===b&&ord.v===1;
       return {op,me,th,meAll:meAll.slice(0,5),thAll:thAll.slice(0,5),risk,ord,win,score:Math.min(b,99)-Math.min(a,99)+(ord.v===1?.5:0)}});
     return {...x,vs,score:vs.reduce((a,v)=>a+v.score,0)}}).sort((a,b)=>b.score-a.score);
+}
+
+// 한 대면을 턴 단위로 진행 (평균 데미지, 양쪽 다 매 턴 최강기, 동속은 상대 먼저로 보수적으로)
+// h1·h2: 시작 시 남은 HP% (내 쪽, 상대 쪽). 기합의띠·옹골참은 HP 가득일 때 한 번 버팀 (연속기 제외)
+function duel(x,op,h1,h2){
+  // 2턴 기술·반동으로 쉬는 기술은 매 턴 쓸 수 없으니 다른 공격기가 있으면 제외
+  const each=(ms,sun)=>{const u=usable(ms,sun);return u.length?u:ms};
+  const me=best(x.F,op.F,each(x.ms,weatherOf(x.F,op.F)==='sun')),th=best(op.F,x.F,op.seenAtk.length?each(op.seenAtk,op.sun):usable(op.all,op.sun));
+  const myD=me?me.avg/stat(op.F,'hp')*100:0,thD=th?th.avg/stat(x.F,'hp')*100:0,first=order(x.F,op.F,me,th).v===1;
+  const holds=(F,r)=>(F.item==='sash'||F.ab==='sturdy'&&S.gen>=5)&&r&&!r.hits;
+  let s1=holds(x.F,th),s2=holds(op.F,me),t=0;
+  const hit=(h,d,s)=>h>=100&&s&&d>=h?[0.5,false]:[h-d,s];
+  if(!myD&&!thD)return {win:false,stall:true,h1,h2,t,me,th,first};
+  while(t++<30){
+    for(const mine of first?[1,0]:[0,1]){
+      if(mine){[h2,s2]=hit(h2,myD,s2);if(h2<=0)return {win:true,h1,h2:0,t,me,th,first}}
+      else{[h1,s1]=hit(h1,thD,s1);if(h1<=0)return {win:false,h1:0,h2,t,me,th,first}}
+    }
+  }
+  return {win:false,stall:true,h1,h2,t,me,th,first};
+}
+// 엔트리 전체 공략: 상대는 순서대로 나온다고 가정, 내 HP는 이어짐, 상대를 쓰러뜨린 뒤 교체는 무료
+// 고르는 기준: 이기는 포켓몬 중 HP가 가장 많이 남는 쪽 → 없으면 데미지를 가장 많이 주는 쪽을 내보내고 다음 포켓몬이 마무리
+async function npcPlan(npc,bt){
+  const mine=(await mineCtx()).map(x=>({...x,F:{...x.F,rank:{},status:'',side:{}},hp:100}));
+  const steps=[];
+  for(let k=0;k<bt.team.length;k++){
+    const op=await oppCtx(await npcSlot(npc,bt,k));op.F={...op.F,rank:{},side:{}};
+    let h2=100;
+    while(h2>0){
+      const alive=mine.filter(x=>x.hp>0);
+      if(!alive.length){steps.push({op,lost:true});return {steps,win:false}}
+      const tries=alive.map(x=>({x,r:duel(x,op,x.hp,h2)}));
+      const wins=tries.filter(c=>c.r.win).sort((a,b)=>b.r.h1-a.r.h1);
+      const pick=wins[0]||tries.sort((a,b)=>(h2-b.r.h2)-(h2-a.r.h2))[0];
+      const alt=(wins[0]?wins[1]:null)||null;
+      steps.push({op,x:pick.x,r:pick.r,startHp:pick.x.hp,oppStart:h2,alt});
+      pick.x.hp=pick.r.h1;
+      if(pick.r.stall&&pick.r.h2===h2){steps.push({op,stuck:true});return {steps,win:false}}
+      h2=pick.r.h2;
+    }
+  }
+  return {steps,win:true,fainted:mine.filter(x=>x.hp<=0).map(x=>x.p.name),left:mine.filter(x=>x.hp>0)};
 }
 
 // 기술 이름: 마우스를 올리거나 누르면 기술 정보 팝업
